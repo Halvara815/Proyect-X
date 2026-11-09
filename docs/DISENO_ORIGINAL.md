@@ -32,10 +32,10 @@ Los valores son un punto de partida independiente, no una extracción de la refe
 
 ## Modelo de navegación y componentes
 
-La navegación inicial tendrá cuatro destinos explícitos: **Hoy**, **Sesión**, **Reglas** y **Privacidad**. Cada uno debe resolver una tarea distinta y permitir volver al estado anterior sin rutas ocultas.
+La navegación inicial tendrá cuatro destinos explícitos: **Inicio**, **Protección**, **Reglas** y **Privacidad**. Cada uno debe resolver una tarea distinta y permitir volver al estado anterior sin rutas ocultas.
 
-- **Hoy:** una síntesis breve de la protección activa, la siguiente sesión y una acción clara para revisar el plan.
-- **Sesión:** elegir una intención, duración y pausa; la pantalla explica qué cambiará antes de iniciarla.
+- **Inicio:** una síntesis breve de la protección activa, la siguiente sesión y una acción clara para revisar el plan.
+- **Protección:** permisos, presupuestos y alcance real del filtro DNS local antes de activarlo.
 - **Reglas:** crear y revisar reglas de dominio o categoría, con prioridad visible y un resultado de ejemplo que no exponga historial sensible.
 - **Privacidad:** mostrar permisos concedidos, alcance real de la VPN local, datos guardados y acciones de borrar, exportar o desactivar.
 

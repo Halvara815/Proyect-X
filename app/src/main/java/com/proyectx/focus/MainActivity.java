@@ -79,6 +79,7 @@ public final class MainActivity extends Activity {
     private Button dnsAction;
     private TextView scheduleDetailView;
     private ScheduleWindow draftSchedule = ScheduleWindow.always();
+    private String activeDestination = "inicio";
 
     @Override
     public void onCreate(Bundle state) {
@@ -125,6 +126,17 @@ public final class MainActivity extends Activity {
         header.addView(headerWords, weight());
         root.addView(header);
 
+        LinearLayout destinations = column();
+        LinearLayout homeDestination = column();
+        LinearLayout protectionDestination = column();
+        LinearLayout rulesDestination = column();
+        LinearLayout privacyDestination = column();
+        destinations.addView(homeDestination);
+        destinations.addView(protectionDestination);
+        destinations.addView(rulesDestination);
+        destinations.addView(privacyDestination);
+        root.addView(destinations);
+
         LinearLayout hero = card();
         hero.setBackground(round(HERO, 24));
         hero.setElevation(0);
@@ -135,12 +147,12 @@ public final class MainActivity extends Activity {
                 15,
                 MUTED,
                 Typeface.NORMAL));
-        root.addView(hero, marginTop(16));
+        homeDestination.addView(hero, marginTop(16));
 
         LinearLayout metrics = row(Gravity.CENTER_VERTICAL);
         metrics.addView(metricCard("REGLAS ACTIVAS", "0", "en este dispositivo"), weightWithMargin(1, 0, 0, dp(8), 0));
         metrics.addView(metricCard("COBERTURA", "Revisar", "permisos y modos"), weightWithMargin(1, 0, 0, 0, 0));
-        root.addView(metrics, marginTop(12));
+        homeDestination.addView(metrics, marginTop(12));
         ruleCountView = (TextView) ((LinearLayout) metrics.getChildAt(0)).getChildAt(1);
         protectionStatusView = (TextView) ((LinearLayout) metrics.getChildAt(1)).getChildAt(1);
 
@@ -163,17 +175,17 @@ public final class MainActivity extends Activity {
                 12,
                 MUTED,
                 Typeface.NORMAL));
-        root.addView(session, marginTop(16));
+        homeDestination.addView(session, marginTop(16));
 
-        root.addView(text("Protección del dispositivo", 21, TEXT, Typeface.BOLD), marginTop(26));
-        root.addView(text(
+        protectionDestination.addView(text("Protección del dispositivo", 21, TEXT, Typeface.BOLD), marginTop(20));
+        protectionDestination.addView(text(
                 "Activa el servicio solo si deseas bloquear paquetes Android. Android siempre pide esta aprobación manualmente.",
                 14,
                 MUTED,
                 Typeface.NORMAL));
         Button accessibility = button("REVISAR ACCESIBILIDAD", SURFACE_RAISED, TEXT);
         accessibility.setOnClickListener(view -> openAccessibilitySettings());
-        root.addView(accessibility, marginTop(10));
+        protectionDestination.addView(accessibility, marginTop(10));
 
         LinearLayout budgets = card();
         budgets.addView(text("Límites diarios", 19, TEXT, Typeface.BOLD));
@@ -190,7 +202,7 @@ public final class MainActivity extends Activity {
         budgets.addView(budgetPickerButton, marginTop(8));
         budgetsContainer = column();
         budgets.addView(budgetsContainer, marginTop(6));
-        root.addView(budgets, marginTop(12));
+        protectionDestination.addView(budgets, marginTop(12));
 
         LinearLayout coverage = card();
         coverage.addView(text("Cobertura web", 19, TEXT, Typeface.BOLD));
@@ -227,7 +239,23 @@ public final class MainActivity extends Activity {
         Button vpnSettings = button("ABRIR AJUSTES DE VPN", SURFACE_RAISED, TEXT);
         vpnSettings.setOnClickListener(view -> showAlwaysOnDisclosure());
         coverage.addView(vpnSettings, marginTop(8));
-        root.addView(coverage, marginTop(12));
+        protectionDestination.addView(coverage, marginTop(12));
+
+        privacyDestination.addView(text("Privacidad primero", 21, TEXT, Typeface.BOLD), marginTop(20));
+        LinearLayout privacyCard = card();
+        privacyCard.addView(text("Control visible, datos locales", 19, TEXT, Typeface.BOLD));
+        privacyCard.addView(text(
+                "Proyect X no crea una cuenta ni guarda un historial de tus consultas. Cada permiso conserva su alcance y puede revocarse desde Android.",
+                14,
+                MUTED,
+                Typeface.NORMAL));
+        Button privacyCoverage = button("REVISAR COBERTURA", SURFACE_RAISED, TEXT);
+        privacyCoverage.setOnClickListener(view -> showCoverageDisclosure());
+        privacyCard.addView(privacyCoverage, marginTop(12));
+        Button privacyVpn = button("REVISAR AJUSTES DE VPN", SURFACE_RAISED, TEXT);
+        privacyVpn.setOnClickListener(view -> showAlwaysOnDisclosure());
+        privacyCard.addView(privacyVpn, marginTop(8));
+        privacyDestination.addView(privacyCard, marginTop(12));
 
         LinearLayout composer = card();
         composer.addView(text("Nueva regla", 19, TEXT, Typeface.BOLD));
@@ -276,12 +304,18 @@ public final class MainActivity extends Activity {
         Button add = button("GUARDAR REGLA", PRIMARY, BACKGROUND);
         add.setOnClickListener(view -> addRule());
         composer.addView(add, marginTop(14));
-        root.addView(composer, marginTop(16));
+        rulesDestination.addView(composer, marginTop(20));
 
-        root.addView(text("Tus reglas", 20, TEXT, Typeface.BOLD), marginTop(22));
+        rulesDestination.addView(text("Tus reglas", 20, TEXT, Typeface.BOLD), marginTop(22));
         rulesContainer = column();
-        root.addView(rulesContainer);
-        setContentView(scroll);
+        rulesDestination.addView(rulesContainer);
+        showDestination(homeDestination, protectionDestination, rulesDestination, privacyDestination);
+
+        LinearLayout shell = column();
+        shell.setBackgroundColor(BACKGROUND);
+        shell.addView(scroll, fillWeight());
+        shell.addView(destinationNavigation());
+        setContentView(shell);
         refreshDashboard();
     }
 
@@ -967,11 +1001,56 @@ public final class MainActivity extends Activity {
         return column;
     }
 
+    private void showDestination(LinearLayout home, LinearLayout protection, LinearLayout rules, LinearLayout privacy) {
+        home.setVisibility("inicio".equals(activeDestination) ? View.VISIBLE : View.GONE);
+        protection.setVisibility("proteccion".equals(activeDestination) ? View.VISIBLE : View.GONE);
+        rules.setVisibility("reglas".equals(activeDestination) ? View.VISIBLE : View.GONE);
+        privacy.setVisibility("privacidad".equals(activeDestination) ? View.VISIBLE : View.GONE);
+    }
+
+    private LinearLayout destinationNavigation() {
+        LinearLayout navigation = row(Gravity.CENTER_VERTICAL);
+        navigation.setPadding(dp(12), dp(8), dp(12), dp(12));
+        navigation.setBackground(outline(SURFACE, OUTLINE, 0));
+        navigation.addView(destinationButton("inicio", "Inicio"), navigationWeight());
+        navigation.addView(destinationButton("proteccion", "Protección"), navigationWeight());
+        navigation.addView(destinationButton("reglas", "Reglas"), navigationWeight());
+        navigation.addView(destinationButton("privacidad", "Privacidad"), navigationWeight());
+        return navigation;
+    }
+
+    private Button destinationButton(String destination, String title) {
+        boolean selected = destination.equals(activeDestination);
+        Button button = new Button(this);
+        button.setAllCaps(false);
+        button.setText(title);
+        button.setTextSize(11);
+        button.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        button.setTextColor(selected ? TEXT : MUTED);
+        button.setMinHeight(dp(52));
+        button.setPadding(dp(2), dp(4), dp(2), dp(4));
+        button.setBackground(round(selected ? ACCENT : SURFACE, 16));
+        button.setOnClickListener(view -> {
+            if (destination.equals(activeDestination)) return;
+            activeDestination = destination;
+            render();
+        });
+        return button;
+    }
+
     private LinearLayout.LayoutParams size(int width, int height) {
         return new LinearLayout.LayoutParams(width, height);
     }
 
     private LinearLayout.LayoutParams weight() {
+        return new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+    }
+
+    private LinearLayout.LayoutParams fillWeight() {
+        return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+    }
+
+    private LinearLayout.LayoutParams navigationWeight() {
         return new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
     }
 
