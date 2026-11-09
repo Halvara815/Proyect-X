@@ -79,6 +79,7 @@ java -cp build\smoke com.proyectx.focus.FocusSessionSmokeTest
 - [Fases para una app completa](docs/FASES_PRODUCTO.md)
 - [Firma de release, verificación, notas de versión y rollback](docs/RELEASE.md)
 - [Investigación REA del APK de referencia](docs/INVESTIGACION_REA_BLOCKERX_5_0_61.md)
+- [Mapa RAE de capacidades y layout propio](docs/RAE_LAYOUT_EVIDENCE.md)
 
 ## Licencia y nombre
 

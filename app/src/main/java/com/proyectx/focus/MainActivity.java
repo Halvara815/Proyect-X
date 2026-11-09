@@ -69,6 +69,10 @@ public final class MainActivity extends Activity {
     private TextView dnsStatusView;
     private TextView sessionTitleView;
     private TextView sessionDetailView;
+    private TextView domainRuleCountView;
+    private TextView appRuleCountView;
+    private TextView keywordRuleCountView;
+    private TextView ruleBreakdownView;
     private Button sessionAction;
     private EditText valueInput;
     private Spinner typeSelector;
@@ -142,13 +146,21 @@ public final class MainActivity extends Activity {
         LinearLayout hero = card();
         hero.setBackground(round(HERO, 24));
         hero.setElevation(0);
-        hero.addView(tag("HOY", PRIMARY, BACKGROUND));
+        hero.addView(tag("MAPA DEL DÍA", PRIMARY, BACKGROUND));
         hero.addView(text("Tu día, con menos interrupciones.", 25, TEXT, Typeface.BOLD));
         hero.addView(text(
                 "Elige una sesión, ajusta tus reglas y conoce siempre el alcance de la protección que activas.",
                 15,
                 MUTED,
                 Typeface.NORMAL));
+        LinearLayout heroRoutes = row(Gravity.CENTER_VERTICAL);
+        Button barriersRoute = compactButton("VER BARRERAS", SURFACE, TEXT);
+        barriersRoute.setOnClickListener(view -> switchDestination("proteccion"));
+        heroRoutes.addView(barriersRoute, weightWithMargin(1, 0, 0, dp(8), 0));
+        Button rulesRoute = compactButton("REVISAR REGLAS", PRIMARY, Color.WHITE);
+        rulesRoute.setOnClickListener(view -> switchDestination("reglas"));
+        heroRoutes.addView(rulesRoute, weight());
+        hero.addView(heroRoutes, marginTop(12));
         homeDestination.addView(hero, marginTop(16));
 
         LinearLayout metrics = row(Gravity.CENTER_VERTICAL);
@@ -157,6 +169,27 @@ public final class MainActivity extends Activity {
         homeDestination.addView(metrics, marginTop(12));
         ruleCountView = (TextView) ((LinearLayout) metrics.getChildAt(0)).getChildAt(1);
         protectionStatusView = (TextView) ((LinearLayout) metrics.getChildAt(1)).getChildAt(1);
+
+        LinearLayout ruleMap = card();
+        ruleMap.setPadding(dp(16), dp(14), dp(16), dp(14));
+        LinearLayout mapHeader = row(Gravity.CENTER_VERTICAL);
+        mapHeader.addView(text("Tu mapa de reglas", 16, TEXT, Typeface.BOLD), weight());
+        mapHeader.addView(tag("LOCAL", PRIMARY, BACKGROUND));
+        ruleMap.addView(mapHeader);
+        ruleMap.addView(text(
+                "Cada contador proviene de reglas guardadas en este dispositivo; no representa actividad ni historial.",
+                12,
+                MUTED,
+                Typeface.NORMAL));
+        LinearLayout ruleKinds = row(Gravity.CENTER_VERTICAL);
+        domainRuleCountView = compactMetric("DOMINIOS");
+        appRuleCountView = compactMetric("APPS");
+        keywordRuleCountView = compactMetric("PALABRAS");
+        ruleKinds.addView(domainRuleCountView, weightWithMargin(1, 0, 0, dp(6), 0));
+        ruleKinds.addView(appRuleCountView, weightWithMargin(1, 0, 0, dp(6), 0));
+        ruleKinds.addView(keywordRuleCountView, weight());
+        ruleMap.addView(ruleKinds, marginTop(10));
+        homeDestination.addView(ruleMap, marginTop(12));
 
         LinearLayout session = card();
         LinearLayout sessionHeader = row(Gravity.CENTER_VERTICAL);
@@ -333,6 +366,8 @@ public final class MainActivity extends Activity {
         rulesDestination.addView(composer, marginTop(20));
 
         rulesDestination.addView(text("Tus reglas", 20, TEXT, Typeface.BOLD), marginTop(22));
+        ruleBreakdownView = text("", 13, MUTED, Typeface.NORMAL);
+        rulesDestination.addView(ruleBreakdownView, marginTop(2));
         rulesContainer = column();
         rulesDestination.addView(rulesContainer);
         showDestination(homeDestination, protectionDestination, rulesDestination, recoveryDestination);
@@ -348,6 +383,21 @@ public final class MainActivity extends Activity {
     private void refreshDashboard() {
         List<Rule> rules = ruleStore.list();
         ruleCountView.setText(String.valueOf(rules.size()));
+        int domains = 0;
+        int apps = 0;
+        int keywords = 0;
+        for (Rule rule : rules) {
+            if (!rule.enabled()) continue;
+            if (rule.type() == Rule.Type.DOMAIN) domains++;
+            else if (rule.type() == Rule.Type.APP) apps++;
+            else keywords++;
+        }
+        if (domainRuleCountView != null) domainRuleCountView.setText("DOMINIOS\n" + domains);
+        if (appRuleCountView != null) appRuleCountView.setText("APPS\n" + apps);
+        if (keywordRuleCountView != null) keywordRuleCountView.setText("PALABRAS\n" + keywords);
+        if (ruleBreakdownView != null) {
+            ruleBreakdownView.setText(domains + " dominios · " + apps + " apps · " + keywords + " palabras activas");
+        }
         boolean enabled = isAccessibilityEnabled();
         protectionStatusView.setText(enabled ? "Activo" : "Pendiente");
         protectionStatusView.setTextColor(enabled ? PRIMARY : ACCENT);
@@ -982,6 +1032,15 @@ public final class MainActivity extends Activity {
         return card;
     }
 
+    private TextView compactMetric(String label) {
+        TextView view = text(label + "\n0", 12, TEXT, Typeface.BOLD);
+        view.setGravity(Gravity.CENTER);
+        view.setLineSpacing(0f, 0.95f);
+        view.setPadding(dp(8), dp(10), dp(8), dp(10));
+        view.setBackground(round(SURFACE_RAISED, 14));
+        return view;
+    }
+
     private Spinner spinner(String[] values) {
         Spinner spinner = new Spinner(this);
         spinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, values));
@@ -1009,6 +1068,15 @@ public final class MainActivity extends Activity {
         button.setMinHeight(dp(48));
         button.setPadding(dp(12), dp(6), dp(12), dp(6));
         button.setBackground(round(background, 14));
+        return button;
+    }
+
+    private Button compactButton(String value, int background, int foreground) {
+        Button button = button(value, background, foreground);
+        button.setTextSize(11);
+        button.setMinHeight(dp(42));
+        button.setPadding(dp(6), dp(2), dp(6), dp(2));
+        button.setBackground(round(background, 12));
         return button;
     }
 
@@ -1082,10 +1150,15 @@ public final class MainActivity extends Activity {
         tile.setBackground(round(selected ? ACCENT : SURFACE, 16));
         tile.setOnClickListener(view -> {
             if (destination.equals(activeDestination)) return;
-            activeDestination = destination;
-            render();
+            switchDestination(destination);
         });
         return tile;
+    }
+
+    private void switchDestination(String destination) {
+        if (destination.equals(activeDestination)) return;
+        activeDestination = destination;
+        render();
     }
 
     private Button sessionDurationButton(String title, int minutes) {
