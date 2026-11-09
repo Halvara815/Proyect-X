@@ -79,6 +79,10 @@ jobs:
             DnsVpnPrivacyBoundarySmokeTest
           )
           for test in "${tests[@]}"; do java -cp build/smoke "com.proyectx.focus.${test}"; done
+      - name: Install Android SDK platform 37
+        run: |
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37" "build-tools;36.0.0"
       - name: Build and lint Android artifacts
         run: ./gradlew --no-daemon --no-configuration-cache :app:lintDebug :app:assembleDebug :app:assembleRelease
       - name: Generate CycloneDX SBOM
