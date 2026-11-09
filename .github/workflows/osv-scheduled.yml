@@ -28,20 +28,20 @@ jobs:
         run: |
           yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0"
-      - name: Generate CycloneDX SBOM from the resolved Gradle graph
-        run: ./gradlew --no-daemon --no-configuration-cache cyclonedxBom
-      - name: Publish resolved CycloneDX SBOM for the scanner
+      - name: Generate CycloneDX SBOM for the release APK boundary
+        run: ./gradlew --no-daemon --no-configuration-cache :app:cyclonedxDirectBom
+      - name: Publish the release APK SBOM for the scanner
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: proyect-x-resolved-cyclonedx-sbom
-          path: build/reports/cyclonedx/bom.json
+          path: app/build/reports/cyclonedx-direct/bom.json
           if-no-files-found: error
 
   scan:
     needs: generate-resolved-sbom
     uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
     with:
-      # Do not scan Gradle's verification history as a source dependency graph.
+      # Do not scan Gradle's verification history or the build-tooling graph as APK dependencies.
       # The downloaded artifact is extracted at the repository root by the reusable workflow.
       download-artifact: proyect-x-resolved-cyclonedx-sbom
       scan-args: |-

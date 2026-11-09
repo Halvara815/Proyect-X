@@ -9,6 +9,7 @@ public final class ReleaseGovernanceSmokeTest {
         String gradle = Files.readString(Path.of("app/build.gradle.kts"));
         String gitignore = Files.readString(Path.of(".gitignore"));
         String releaseDoc = Files.readString(Path.of("docs/RELEASE.md"));
+        String osvWorkflow = Files.readString(Path.of(".github/workflows/osv-scheduled.yml"));
 
         require(gradle.contains("PROYECT_X_KEYSTORE_PATH"));
         require(gradle.contains("PROYECT_X_KEYSTORE_PASSWORD"));
@@ -18,6 +19,10 @@ public final class ReleaseGovernanceSmokeTest {
         require(gradle.contains("enableV2Signing = true"));
         require(gradle.contains("enableV3Signing = true"));
         require(gradle.contains("includeInApk = false"));
+        require(gradle.contains("includeConfigs = listOf(\"releaseRuntimeClasspath\")"));
+        require(osvWorkflow.contains(":app:cyclonedxDirectBom"));
+        require(osvWorkflow.contains("app/build/reports/cyclonedx-direct/bom.json"));
+        require(osvWorkflow.contains("fail-on-vuln: true"));
         require(gitignore.contains("*.jks") && gitignore.contains("*.keystore"));
         require(releaseDoc.contains("## Firma de release"));
         require(releaseDoc.contains("## Verificación de artefactos"));

@@ -1,3 +1,6 @@
+import org.cyclonedx.gradle.CyclonedxDirectTask
+import org.cyclonedx.model.Component
+
 plugins {
     id("com.android.application")
 }
@@ -61,4 +64,12 @@ android {
         includeInApk = false
         includeInBundle = false
     }
+}
+
+tasks.named<CyclonedxDirectTask>("cyclonedxDirectBom") {
+    componentName = "Proyect X"
+    componentVersion = "0.1.0"
+    projectType = Component.Type.APPLICATION
+    // This SBOM describes the dependency boundary of the distributed release APK.
+    includeConfigs = listOf("releaseRuntimeClasspath")
 }
