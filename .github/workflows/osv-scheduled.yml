@@ -12,7 +12,39 @@ permissions:
   security-events: write
 
 jobs:
+  generate-resolved-sbom:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Set up JDK 17
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+      - name: Install Android SDK platform 37.0
+        run: |
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0"
+      - name: Generate CycloneDX SBOM from the resolved Gradle graph
+        run: ./gradlew --no-daemon --no-configuration-cache cyclonedxBom
+      - name: Publish resolved CycloneDX SBOM for the scanner
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: proyect-x-resolved-cyclonedx-sbom
+          path: build/reports/cyclonedx/bom.json
+          if-no-files-found: error
+
   scan:
+    needs: generate-resolved-sbom
     uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
     with:
+      # Do not scan Gradle's verification history as a source dependency graph.
+      # The downloaded artifact is extracted at the repository root by the reusable workflow.
+      download-artifact: proyect-x-resolved-cyclonedx-sbom
+      scan-args: |-
+        -L
+        bom.json
       fail-on-vuln: true
