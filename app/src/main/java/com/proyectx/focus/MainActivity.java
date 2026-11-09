@@ -62,6 +62,7 @@ public final class MainActivity extends Activity {
     private RuleStore ruleStore;
     private BudgetStore budgetStore;
     private FocusSessionStore sessionStore;
+    private RecoveryStore recoveryStore;
     private LinearLayout rulesContainer;
     private TextView ruleCountView;
     private TextView protectionStatusView;
@@ -87,6 +88,7 @@ public final class MainActivity extends Activity {
         ruleStore = new RuleStore(this);
         budgetStore = new BudgetStore(this);
         sessionStore = new FocusSessionStore(this);
+        recoveryStore = new RecoveryStore(this);
         render();
     }
 
@@ -130,11 +132,11 @@ public final class MainActivity extends Activity {
         LinearLayout homeDestination = column();
         LinearLayout protectionDestination = column();
         LinearLayout rulesDestination = column();
-        LinearLayout privacyDestination = column();
+        LinearLayout recoveryDestination = column();
         destinations.addView(homeDestination);
         destinations.addView(protectionDestination);
         destinations.addView(rulesDestination);
-        destinations.addView(privacyDestination);
+        destinations.addView(recoveryDestination);
         root.addView(destinations);
 
         LinearLayout hero = card();
@@ -167,6 +169,12 @@ public final class MainActivity extends Activity {
         sessionHeader.addView(sessionWords, weight());
         sessionHeader.addView(tag("LOCAL", ACCENT, BACKGROUND));
         session.addView(sessionHeader);
+        session.addView(text("Elige una duración", 12, MUTED, Typeface.BOLD), marginTop(10));
+        LinearLayout durations = row(Gravity.CENTER_VERTICAL);
+        durations.addView(sessionDurationButton("25 min", 25), weightWithMargin(1, 0, 0, dp(6), 0));
+        durations.addView(sessionDurationButton("50 min", 50), weightWithMargin(1, 0, 0, dp(6), 0));
+        durations.addView(sessionDurationButton("90 min", 90), weight());
+        session.addView(durations, marginTop(4));
         sessionAction = button("INICIAR SESIÓN", PRIMARY, BACKGROUND);
         sessionAction.setOnClickListener(view -> showSessionChoices());
         session.addView(sessionAction, marginTop(14));
@@ -241,7 +249,7 @@ public final class MainActivity extends Activity {
         coverage.addView(vpnSettings, marginTop(8));
         protectionDestination.addView(coverage, marginTop(12));
 
-        privacyDestination.addView(text("Privacidad primero", 21, TEXT, Typeface.BOLD), marginTop(20));
+        protectionDestination.addView(text("Privacidad primero", 21, TEXT, Typeface.BOLD), marginTop(20));
         LinearLayout privacyCard = card();
         privacyCard.addView(text("Control visible, datos locales", 19, TEXT, Typeface.BOLD));
         privacyCard.addView(text(
@@ -255,7 +263,25 @@ public final class MainActivity extends Activity {
         Button privacyVpn = button("REVISAR AJUSTES DE VPN", SURFACE_RAISED, TEXT);
         privacyVpn.setOnClickListener(view -> showAlwaysOnDisclosure());
         privacyCard.addView(privacyVpn, marginTop(8));
-        privacyDestination.addView(privacyCard, marginTop(12));
+        protectionDestination.addView(privacyCard, marginTop(12));
+
+        recoveryDestination.addView(text("Reinicio con calma", 21, TEXT, Typeface.BOLD), marginTop(20));
+        LinearLayout recoveryCard = card();
+        recoveryCard.addView(text("Vuelve a elegir tu siguiente paso", 19, TEXT, Typeface.BOLD));
+        recoveryCard.addView(text(
+                "Un reinicio cierra la sesión actual y registra una nota local. Tus reglas, permisos y protección permanecen como están.",
+                14,
+                MUTED,
+                Typeface.NORMAL));
+        TextView recoverySummary = text(recoveryStore.summary(), 13, MUTED, Typeface.NORMAL);
+        recoveryCard.addView(recoverySummary, marginTop(10));
+        Button pauseRecovery = button("NECESITO UNA PAUSA", DANGER, Color.WHITE);
+        pauseRecovery.setOnClickListener(view -> showRecoveryPrompt("Pausa consciente"));
+        recoveryCard.addView(pauseRecovery, marginTop(14));
+        Button planRecovery = button("CAMBIAR MI PLAN", SURFACE_RAISED, TEXT);
+        planRecovery.setOnClickListener(view -> showRecoveryPrompt("Cambio de plan"));
+        recoveryCard.addView(planRecovery, marginTop(8));
+        recoveryDestination.addView(recoveryCard, marginTop(12));
 
         LinearLayout composer = card();
         composer.addView(text("Nueva regla", 19, TEXT, Typeface.BOLD));
@@ -309,7 +335,7 @@ public final class MainActivity extends Activity {
         rulesDestination.addView(text("Tus reglas", 20, TEXT, Typeface.BOLD), marginTop(22));
         rulesContainer = column();
         rulesDestination.addView(rulesContainer);
-        showDestination(homeDestination, protectionDestination, rulesDestination, privacyDestination);
+        showDestination(homeDestination, protectionDestination, rulesDestination, recoveryDestination);
 
         LinearLayout shell = column();
         shell.setBackgroundColor(BACKGROUND);
@@ -375,19 +401,42 @@ public final class MainActivity extends Activity {
         int[] durations = {25, 50, 90};
         new AlertDialog.Builder(this)
                 .setTitle("¿Cuánto tiempo quieres proteger?")
-                .setItems(choices, (dialog, selected) -> {
-                    try {
-                        sessionStore.start(durations[selected], System.currentTimeMillis());
-                        refreshSession();
-                        Toast.makeText(this, "Sesión local iniciada.", Toast.LENGTH_SHORT)
-                                .show();
-                    } catch (IllegalArgumentException | IllegalStateException exception) {
-                        Toast.makeText(this, exception.getMessage(), Toast.LENGTH_LONG)
-                                .show();
-                    }
-                })
+                .setItems(choices, (dialog, selected) -> startFocusSession(durations[selected]))
                 .setNegativeButton("Cancelar", null)
                 .show();
+    }
+
+    private void startFocusSession(int durationMinutes) {
+        try {
+            sessionStore.start(durationMinutes, System.currentTimeMillis());
+            refreshSession();
+            Toast.makeText(this, "Sesión local iniciada.", Toast.LENGTH_SHORT).show();
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            Toast.makeText(this, exception.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void showRecoveryPrompt(String reason) {
+        new AlertDialog.Builder(this)
+                .setTitle("¿Reiniciar el plan?")
+                .setMessage(
+                        "Se cerrará la sesión de enfoque actual y se guardará este reinicio solo en el dispositivo. Tus reglas, permisos y filtro DNS no cambiarán.")
+                .setNegativeButton("Volver", null)
+                .setPositiveButton("REINICIAR", (dialog, which) -> completeRecovery(reason))
+                .show();
+    }
+
+    private void completeRecovery(String reason) {
+        try {
+            recoveryStore.record(reason);
+            sessionStore.clear();
+            activeDestination = "inicio";
+            render();
+            Toast.makeText(this, "Plan reiniciado sin desactivar tus barreras.", Toast.LENGTH_LONG)
+                    .show();
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            Toast.makeText(this, exception.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     private void addRule() {
@@ -1001,11 +1050,12 @@ public final class MainActivity extends Activity {
         return column;
     }
 
-    private void showDestination(LinearLayout home, LinearLayout protection, LinearLayout rules, LinearLayout privacy) {
+    private void showDestination(
+            LinearLayout home, LinearLayout protection, LinearLayout rules, LinearLayout recovery) {
         home.setVisibility("inicio".equals(activeDestination) ? View.VISIBLE : View.GONE);
         protection.setVisibility("proteccion".equals(activeDestination) ? View.VISIBLE : View.GONE);
         rules.setVisibility("reglas".equals(activeDestination) ? View.VISIBLE : View.GONE);
-        privacy.setVisibility("privacidad".equals(activeDestination) ? View.VISIBLE : View.GONE);
+        recovery.setVisibility("reinicio".equals(activeDestination) ? View.VISIBLE : View.GONE);
     }
 
     private LinearLayout destinationNavigation() {
@@ -1013,28 +1063,42 @@ public final class MainActivity extends Activity {
         navigation.setPadding(dp(12), dp(8), dp(12), dp(12));
         navigation.setBackground(outline(SURFACE, OUTLINE, 0));
         navigation.addView(destinationButton("inicio", "Inicio"), navigationWeight());
-        navigation.addView(destinationButton("proteccion", "Protección"), navigationWeight());
+        navigation.addView(destinationButton("proteccion", "Barreras"), navigationWeight());
         navigation.addView(destinationButton("reglas", "Reglas"), navigationWeight());
-        navigation.addView(destinationButton("privacidad", "Privacidad"), navigationWeight());
+        navigation.addView(destinationButton("reinicio", "Reinicio"), navigationWeight());
         return navigation;
     }
 
-    private Button destinationButton(String destination, String title) {
+    private TextView destinationButton(String destination, String title) {
         boolean selected = destination.equals(activeDestination);
-        Button button = new Button(this);
-        button.setAllCaps(false);
-        button.setText(title);
-        button.setTextSize(11);
-        button.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
-        button.setTextColor(selected ? TEXT : MUTED);
-        button.setMinHeight(dp(52));
-        button.setPadding(dp(2), dp(4), dp(2), dp(4));
-        button.setBackground(round(selected ? ACCENT : SURFACE, 16));
-        button.setOnClickListener(view -> {
+        TextView tile = text((selected ? "●\n" : "○\n") + title, 11, selected ? TEXT : MUTED, Typeface.BOLD);
+        tile.setGravity(Gravity.CENTER);
+        tile.setContentDescription(title);
+        tile.setClickable(true);
+        tile.setFocusable(true);
+        tile.setMinHeight(dp(56));
+        tile.setLineSpacing(0f, 0.92f);
+        tile.setPadding(dp(2), dp(4), dp(2), dp(4));
+        tile.setBackground(round(selected ? ACCENT : SURFACE, 16));
+        tile.setOnClickListener(view -> {
             if (destination.equals(activeDestination)) return;
             activeDestination = destination;
             render();
         });
+        return tile;
+    }
+
+    private Button sessionDurationButton(String title, int minutes) {
+        Button button = new Button(this);
+        button.setAllCaps(false);
+        button.setText(title);
+        button.setTextSize(12);
+        button.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        button.setTextColor(TEXT);
+        button.setMinHeight(dp(42));
+        button.setPadding(dp(4), dp(2), dp(4), dp(2));
+        button.setBackground(round(SURFACE_RAISED, 12));
+        button.setOnClickListener(view -> startFocusSession(minutes));
         return button;
     }
 
