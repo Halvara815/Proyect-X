@@ -10,11 +10,13 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
+import android.net.Uri;
 import android.net.VpnService;
 import android.os.Build;
 import android.os.Bundle;
@@ -34,17 +36,26 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.PopupWindow;
 import android.widget.ScrollView;
 import android.widget.Spinner;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 /** Main local-first dashboard. The accessibility integration remains explicitly optional. */
 public final class MainActivity extends Activity {
     private static final int DNS_VPN_CONSENT_REQUEST = 4_201;
     private static final int DNS_NOTIFICATION_REQUEST = 4_202;
+    private static final int RULE_EXPORT_REQUEST = 4_203;
     // Original Proyect X visual tokens. They intentionally do not derive from reference products.
     private static final int BACKGROUND = Color.rgb(246, 242, 234);
     private static final int SURFACE = Color.WHITE;
@@ -62,6 +73,7 @@ public final class MainActivity extends Activity {
     private RuleStore ruleStore;
     private BudgetStore budgetStore;
     private FocusSessionStore sessionStore;
+    private HabitStreakStore habitStreakStore;
     private RecoveryStore recoveryStore;
     private LinearLayout rulesContainer;
     private TextView ruleCountView;
@@ -86,6 +98,7 @@ public final class MainActivity extends Activity {
     private TextView scheduleDetailView;
     private ScheduleWindow draftSchedule = ScheduleWindow.always();
     private String activeDestination = "inicio";
+    private String pendingRulesExport;
 
     @Override
     public void onCreate(Bundle state) {
@@ -93,6 +106,7 @@ public final class MainActivity extends Activity {
         ruleStore = new RuleStore(this);
         budgetStore = new BudgetStore(this);
         sessionStore = new FocusSessionStore(this);
+        habitStreakStore = new HabitStreakStore(this);
         recoveryStore = new RecoveryStore(this);
         render();
     }
@@ -131,6 +145,16 @@ public final class MainActivity extends Activity {
         headerWords.addView(text("Proyect X", 26, TEXT, Typeface.BOLD));
         headerWords.addView(text("PRIVACIDAD LOCAL · SIN CUENTA", 11, PRIMARY, Typeface.BOLD));
         header.addView(headerWords, weight());
+        ImageView menu = new ImageView(this);
+        menu.setImageResource(R.drawable.ic_menu_centro);
+        menu.setColorFilter(TEXT);
+        menu.setContentDescription("Abrir centro local");
+        menu.setClickable(true);
+        menu.setFocusable(true);
+        menu.setPadding(dp(10), dp(10), dp(10), dp(10));
+        menu.setBackground(round(SURFACE_RAISED, 18));
+        menu.setOnClickListener(this::showControlMenu);
+        header.addView(menu, size(dp(44), dp(44)));
         root.addView(header);
 
         LinearLayout destinations = column();
@@ -163,6 +187,24 @@ public final class MainActivity extends Activity {
         heroRoutes.addView(rulesRoute, weight());
         hero.addView(heroRoutes, marginTop(12));
         homeDestination.addView(hero, marginTop(16));
+
+        if (!isAccessibilityEnabled()) {
+            LinearLayout accessNotice = card();
+            accessNotice.setPadding(dp(16), dp(14), dp(16), dp(14));
+            LinearLayout noticeHeader = row(Gravity.CENTER_VERTICAL);
+            noticeHeader.addView(tag("ACCIÓN REQUERIDA", DANGER, BACKGROUND));
+            noticeHeader.addView(text("Bloqueo de apps pendiente", 16, TEXT, Typeface.BOLD), weight());
+            accessNotice.addView(noticeHeader);
+            accessNotice.addView(text(
+                    "Para aplicar reglas a aplicaciones, revisa y activa Accesibilidad desde los ajustes de Android. Esta app no puede encenderla por ti.",
+                    13,
+                    MUTED,
+                    Typeface.NORMAL));
+            Button openAccess = compactButton("REVISAR ACCESIBILIDAD", SURFACE_RAISED, TEXT);
+            openAccess.setOnClickListener(view -> openAccessibilitySettings());
+            accessNotice.addView(openAccess, marginTop(8));
+            homeDestination.addView(accessNotice, marginTop(12));
+        }
 
         LinearLayout metrics = row(Gravity.CENTER_VERTICAL);
         metrics.addView(metricCard("REGLAS ACTIVAS", "0", "en este dispositivo"), weightWithMargin(1, 0, 0, dp(8), 0));
@@ -325,6 +367,34 @@ public final class MainActivity extends Activity {
         recoveryCard.addView(planRecovery, marginTop(8));
         recoveryDestination.addView(recoveryCard, marginTop(12));
 
+        HabitStreak streak = habitStreakStore.read();
+        LinearLayout rhythmCard = card();
+        rhythmCard.addView(text("Ritmo de enfoque", 19, TEXT, Typeface.BOLD));
+        rhythmCard.addView(text(
+                streak.currentDays() == 0
+                        ? "Inicia una sesión cuando te sirva: el primer día crea tu racha local."
+                        : streak.currentDays()
+                                + (streak.currentDays() == 1 ? " día seguido" : " días seguidos")
+                                + " con una sesión de enfoque iniciada.",
+                14,
+                MUTED,
+                Typeface.NORMAL));
+        rhythmCard.addView(
+                text(
+                        "Mejor racha local: " + streak.bestDays() + (streak.bestDays() == 1 ? " día." : " días."),
+                        13,
+                        PRIMARY,
+                        Typeface.BOLD),
+                marginTop(8));
+        rhythmCard.addView(
+                text(
+                        "Consejo: elige una sesión breve y protege sólo tu siguiente bloque de atención.",
+                        13,
+                        MUTED,
+                        Typeface.NORMAL),
+                marginTop(8));
+        recoveryDestination.addView(rhythmCard, marginTop(12));
+
         LinearLayout composer = card();
         composer.addView(text("Nueva regla", 19, TEXT, Typeface.BOLD));
         composer.addView(text(
@@ -473,7 +543,13 @@ public final class MainActivity extends Activity {
 
     private void startFocusSession(int durationMinutes) {
         try {
-            sessionStore.start(durationMinutes, System.currentTimeMillis());
+            long nowMillis = System.currentTimeMillis();
+            sessionStore.start(durationMinutes, nowMillis);
+            try {
+                habitStreakStore.recordFocusStart(nowMillis);
+            } catch (IllegalStateException ignored) {
+                // The voluntary session remains valid even if optional motivation state cannot persist.
+            }
             refreshSession();
             Toast.makeText(this, "Sesión local iniciada.", Toast.LENGTH_SHORT).show();
         } catch (IllegalArgumentException | IllegalStateException exception) {
@@ -552,7 +628,23 @@ public final class MainActivity extends Activity {
                     Typeface.BOLD);
             category.setGravity(Gravity.END);
             top.addView(category, weight());
+            Switch enabled = new Switch(this);
+            enabled.setText(rule.enabled() ? "ACTIVA" : "PAUSADA");
+            enabled.setTextSize(11);
+            enabled.setTextColor(rule.enabled() ? PRIMARY : MUTED);
+            enabled.setChecked(rule.enabled());
+            enabled.setContentDescription("Regla " + rule.value() + (rule.enabled() ? " activa" : " pausada"));
+            enabled.setOnCheckedChangeListener((button, checked) -> {
+                if (checked == rule.enabled()) return;
+                if (!ruleStore.setEnabled(rule.id(), checked)) {
+                    Toast.makeText(this, "No se pudo actualizar la regla local.", Toast.LENGTH_LONG)
+                            .show();
+                }
+                refreshDashboard();
+            });
+            top.addView(enabled);
             item.addView(top);
+            if (!rule.enabled()) item.setAlpha(0.66f);
             item.addView(text(rule.value(), 18, TEXT, Typeface.BOLD));
             item.addView(text(rule.schedule().toDisplayText(), 13, MUTED, Typeface.NORMAL));
             Button remove = button("QUITAR", SURFACE_RAISED, DANGER);
@@ -994,6 +1086,10 @@ public final class MainActivity extends Activity {
     @Deprecated
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == RULE_EXPORT_REQUEST) {
+            writeRulesExport(resultCode, data);
+            return;
+        }
         if (requestCode != DNS_VPN_CONSENT_REQUEST) return;
         if (resultCode == RESULT_OK) {
             startDnsService(DnsVpnService.ACTION_START);
@@ -1034,6 +1130,238 @@ public final class MainActivity extends Activity {
             startActivity(new Intent(action));
         } catch (RuntimeException exception) {
             Toast.makeText(this, "No se pudieron abrir los ajustes de VPN.", Toast.LENGTH_LONG)
+                    .show();
+        }
+    }
+
+    /** Opens a local-only action menu. No item sends data without a user-selected share target. */
+    private void showControlMenu(View anchor) {
+        LinearLayout content = column();
+        content.setPadding(dp(16), dp(16), dp(16), dp(16));
+        content.setBackground(round(SURFACE, 20));
+        content.addView(text("Centro local", 20, TEXT, Typeface.BOLD));
+        content.addView(text("Herramientas del dispositivo", 12, MUTED, Typeface.NORMAL));
+
+        PopupWindow popup = new PopupWindow(content, dp(330), ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        popup.setOutsideTouchable(true);
+        popup.setElevation(dp(10));
+
+        Button export = menuAction("EXPORTAR REGLAS", "Guarda una copia JSON donde tú elijas");
+        export.setOnClickListener(view -> {
+            popup.dismiss();
+            createRulesDocument();
+        });
+        content.addView(export, marginTop(12));
+
+        Button share = menuAction("COMPARTIR REGLAS", "Abre el selector de Android; nada se envía automáticamente");
+        share.setOnClickListener(view -> {
+            popup.dismiss();
+            confirmRuleShare();
+        });
+        content.addView(share, marginTop(6));
+
+        Button privacy = menuAction("PRIVACIDAD Y LÍMITES", "Qué queda local y qué no cubre cada barrera");
+        privacy.setOnClickListener(view -> {
+            popup.dismiss();
+            showPrivacySummary();
+        });
+        content.addView(privacy, marginTop(6));
+
+        Button help = menuAction("AYUDA", "Permisos, reglas y cobertura explicados");
+        help.setOnClickListener(view -> {
+            popup.dismiss();
+            showHelpSummary();
+        });
+        content.addView(help, marginTop(6));
+
+        Button language = menuAction("IDIOMA", "La app sigue el idioma del dispositivo cuando haya traducciones");
+        language.setOnClickListener(view -> {
+            popup.dismiss();
+            showLanguageSettings();
+        });
+        content.addView(language, marginTop(6));
+
+        Button feedback = menuAction("COMPARTIR OPINIÓN", "Tú eliges si quieres abrir el selector de Android");
+        feedback.setOnClickListener(view -> {
+            popup.dismiss();
+            showFeedbackComposer();
+        });
+        content.addView(feedback, marginTop(6));
+        popup.showAsDropDown(anchor, -dp(286), dp(8));
+    }
+
+    private Button menuAction(String title, String detail) {
+        Button action = button(title + "\n" + detail, SURFACE_RAISED, TEXT);
+        action.setAllCaps(false);
+        action.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        action.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        action.setTextSize(13);
+        action.setContentDescription(title + ". " + detail);
+        return action;
+    }
+
+    private void createRulesDocument() {
+        try {
+            pendingRulesExport = rulesExportJson();
+            Intent create = new Intent(Intent.ACTION_CREATE_DOCUMENT)
+                    .addCategory(Intent.CATEGORY_OPENABLE)
+                    .setType("application/json")
+                    .putExtra(Intent.EXTRA_TITLE, "proyect-x-reglas.json");
+            startActivityForResult(create, RULE_EXPORT_REQUEST);
+        } catch (IllegalStateException exception) {
+            Toast.makeText(this, exception.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void writeRulesExport(int resultCode, Intent data) {
+        if (resultCode != RESULT_OK || data == null || data.getData() == null || pendingRulesExport == null) {
+            pendingRulesExport = null;
+            return;
+        }
+        Uri destination = data.getData();
+        try (OutputStream stream = getContentResolver().openOutputStream(destination, "w")) {
+            if (stream == null) throw new IOException("Android no abrió el archivo elegido.");
+            stream.write(pendingRulesExport.getBytes(StandardCharsets.UTF_8));
+            Toast.makeText(this, "Reglas exportadas en el archivo que elegiste.", Toast.LENGTH_LONG)
+                    .show();
+        } catch (IOException | SecurityException exception) {
+            Toast.makeText(this, "No se pudieron exportar las reglas locales.", Toast.LENGTH_LONG)
+                    .show();
+        } finally {
+            pendingRulesExport = null;
+        }
+    }
+
+    private void confirmRuleShare() {
+        new AlertDialog.Builder(this)
+                .setTitle("Compartir reglas locales")
+                .setMessage(
+                        "El selector de Android recibirá una copia de tus reglas, incluidas sus excepciones y horarios. Proyect X no conserva a quién eliges ni envía nada por su cuenta.")
+                .setNegativeButton("Cancelar", null)
+                .setPositiveButton("ABRIR SELECTOR", (dialog, which) -> shareRules())
+                .show();
+    }
+
+    private void shareRules() {
+        try {
+            Intent share = new Intent(Intent.ACTION_SEND)
+                    .setType("application/json")
+                    .putExtra(Intent.EXTRA_SUBJECT, "Reglas locales de Proyect X")
+                    .putExtra(Intent.EXTRA_TEXT, rulesExportJson());
+            startActivity(Intent.createChooser(share, "Compartir reglas"));
+        } catch (IllegalStateException | android.content.ActivityNotFoundException exception) {
+            Toast.makeText(this, "No hay una aplicación disponible para compartir.", Toast.LENGTH_LONG)
+                    .show();
+        }
+    }
+
+    private String rulesExportJson() {
+        try {
+            JSONArray rules = new JSONArray();
+            for (Rule rule : ruleStore.list()) {
+                JSONObject item = new JSONObject();
+                item.put("id", rule.id());
+                item.put("type", rule.type().name());
+                item.put("action", rule.action().name());
+                item.put("value", rule.value());
+                item.put("enabled", rule.enabled());
+                JSONObject schedule = new JSONObject();
+                schedule.put("always", rule.schedule().isAlways());
+                schedule.put("days", rule.schedule().getDayMask());
+                schedule.put("startMinute", rule.schedule().getStartMinute());
+                schedule.put("endMinute", rule.schedule().getEndMinute());
+                item.put("schedule", schedule);
+                rules.put(item);
+            }
+            JSONObject document = new JSONObject();
+            document.put("schema", "proyect-x-rules-v1");
+            document.put("rules", rules);
+            return document.toString(2);
+        } catch (JSONException exception) {
+            throw new IllegalStateException("No se pudo preparar la exportación local.", exception);
+        }
+    }
+
+    private void showPrivacySummary() {
+        new AlertDialog.Builder(this)
+                .setTitle("Privacidad y límites")
+                .setMessage(
+                        "Reglas, sesiones y reinicios se guardan localmente. No hay cuenta, analítica ni historial de navegación.\n\n"
+                                + "El servicio de apps ve solamente el paquete que llega al frente; no lee texto, URL ni contenido. El filtro DNS opcional evalúa solo DNS UDP y no cubre DoH, DoT, QUIC, IP directas, DNS TCP, resolutores propios ni otra VPN.")
+                .setNegativeButton("CERRAR", null)
+                .setPositiveButton("VER COBERTURA", (dialog, which) -> showCoverageDisclosure())
+                .show();
+    }
+
+    private void showHelpSummary() {
+        new AlertDialog.Builder(this)
+                .setTitle("Ayuda de Proyect X")
+                .setMessage("• Las reglas Permitir tienen prioridad sobre Bloquear.\n"
+                        + "• Un switch pausado deja de aplicar esa regla, pero no la elimina.\n"
+                        + "• El bloqueo de apps requiere Accesibilidad; Android lo habilita manualmente.\n"
+                        + "• El DNS es opcional y su cobertura se explica antes de activarlo.\n"
+                        + "• Reinicio cierra solo la sesión voluntaria; no desactiva barreras.")
+                .setPositiveButton("ENTENDIDO", null)
+                .show();
+    }
+
+    private void showLanguageSettings() {
+        new AlertDialog.Builder(this)
+                .setTitle("Idioma de la app")
+                .setMessage(
+                        "Esta versión está escrita en español. Proyect X seguirá la preferencia del sistema cuando incorporemos traducciones revisadas; no cambiaremos textos a medias ni enviaremos tu idioma fuera del dispositivo.")
+                .setNegativeButton("CERRAR", null)
+                .setPositiveButton("AJUSTES DEL SISTEMA", (dialog, which) -> openLanguageSettings())
+                .show();
+    }
+
+    private void openLanguageSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            Toast.makeText(this, "Tu versión de Android no tiene preferencias por aplicación.", Toast.LENGTH_LONG)
+                    .show();
+            return;
+        }
+        try {
+            startActivity(new Intent(Settings.ACTION_APP_LOCALE_SETTINGS));
+        } catch (RuntimeException exception) {
+            Toast.makeText(this, "No se pudieron abrir los ajustes de idioma.", Toast.LENGTH_LONG)
+                    .show();
+        }
+    }
+
+    private void showFeedbackComposer() {
+        EditText feedback = new EditText(this);
+        feedback.setHint("¿Qué podríamos mejorar?");
+        feedback.setHintTextColor(MUTED);
+        feedback.setTextColor(TEXT);
+        feedback.setMinLines(3);
+        feedback.setPadding(dp(14), dp(10), dp(14), dp(10));
+        feedback.setBackground(outline(SURFACE_RAISED, ACCENT, 12));
+        new AlertDialog.Builder(this)
+                .setTitle("Comparte tu opinión")
+                .setMessage(
+                        "Tu texto no se envía a Proyect X. Si continúas, Android abre un selector y tú decides si compartirlo.")
+                .setView(feedback)
+                .setNegativeButton("CANCELAR", null)
+                .setPositiveButton(
+                        "ABRIR SELECTOR",
+                        (dialog, which) -> shareFeedback(feedback.getText().toString()))
+                .show();
+    }
+
+    private void shareFeedback(String feedback) {
+        String message = feedback == null ? "" : feedback.trim();
+        if (message.isEmpty()) {
+            Toast.makeText(this, "Escribe una opinión antes de compartirla.", Toast.LENGTH_LONG)
+                    .show();
+            return;
+        }
+        try {
+            Intent share = new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, message);
+            startActivity(Intent.createChooser(share, "Compartir opinión"));
+        } catch (android.content.ActivityNotFoundException exception) {
+            Toast.makeText(this, "No hay una aplicación disponible para compartir.", Toast.LENGTH_LONG)
                     .show();
         }
     }

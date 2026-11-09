@@ -71,4 +71,9 @@ public final class Rule {
     public ScheduleWindow schedule() {
         return schedule;
     }
+
+    /** Keeps identity, value and schedule while changing only the active state. */
+    public Rule withEnabled(boolean enabled) {
+        return new Rule(id, type, action, value, enabled, schedule);
+    }
 }

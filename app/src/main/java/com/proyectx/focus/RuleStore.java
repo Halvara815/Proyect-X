@@ -55,6 +55,22 @@ public final class RuleStore {
         return write(rules);
     }
 
+    /** Changes one existing local rule without altering its value, precedence or schedule. */
+    public synchronized boolean setEnabled(String id, boolean enabled) {
+        List<Rule> rules = list();
+        boolean found = false;
+        List<Rule> updated = new ArrayList<>();
+        for (Rule rule : rules) {
+            if (rule.id().equals(id)) {
+                updated.add(rule.withEnabled(enabled));
+                found = true;
+            } else {
+                updated.add(rule);
+            }
+        }
+        return found && write(updated);
+    }
+
     private boolean write(List<Rule> rules) {
         JSONArray array = new JSONArray();
         for (Rule rule : rules) {
