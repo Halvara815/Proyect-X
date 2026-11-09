@@ -106,7 +106,7 @@ Los criterios marcados **N/A** son condicionales y quedan fuera de la métrica: 
 - [x] Manual de configuración y desactivación de reglas, presupuesto, Acceso de uso y Accesibilidad.
 - [ ] Pruebas de restauración de configuración en dispositivos físicos.
 - [x] Matriz pública de cobertura y limitaciones actualizada por versión: `docs/COMPATIBILIDAD.md` documenta `0.1.0`/commit público y distingue evidencia AVD, límites y pruebas físicas pendientes.
-- [ ] Firma de release, verificación de artefactos, notas de versión y plan de rollback/fix-forward.
+- [x] Firma de release, verificación de artefactos, notas de versión y plan de rollback/fix-forward: configurado en `app/build.gradle.kts` por variables de entorno sin secretos en Git, verificado con `apksigner` (v1/v2/v3), documentado en `docs/RELEASE.md` y protegido por `ReleaseGovernanceSmokeTest`.
 
 **Criterio de aceptación:** el producto informa límites antes de vender seguridad, supera la revisión de privacidad y cuenta con un procedimiento de reversión probado.
 
@@ -122,4 +122,4 @@ Los criterios marcados **N/A** son condicionales y quedan fuera de la métrica: 
 - Investigación estática del artefacto recibido: [Investigación REA de BlockerX 5.0.61](INVESTIGACION_REA_BLOCKERX_5_0_61.md).
 - Estado actual del proyecto: [Architecture 0](architecture/ARCHITECTURE_0.md).
 - Entrega incremental existente: [Build plan](BUILD_PLAN.md).
-- Validación AVD 2026-11-09: consentimiento VPN, servicio/notificación y parada comprobados; el bloqueo desde WebView/resolvedor no pasó. Véase [laboratorio DNS](DNS_LAB.md) y ADR-004. Los criterios de cobertura VPN continúan abiertos.
+- Validación AVD 2026-11-09: consentimiento VPN, servicio/notificación, parada, revocación (`onRevoke`), reconciliación tras reinicio del proceso y bloqueo DNS efectivo en `WebView Browser Tester` (`net::ERR_NAME_NOT_RESOLVED`) y resolvedor del sistema (`unknown host`) comprobados en AVD API 34 tras corregir `ScheduleWindow.dayIndexFromCalendarDayOfWeek`. Véase [laboratorio DNS](DNS_LAB.md) y ADR-004. Los criterios de varios navegadores comerciales, reinicio del teléfono y redes físicas continúan abiertos.

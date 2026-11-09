@@ -1,6 +1,6 @@
 # ADR-004: VPN DNS local opcional y sin servidor remoto
 
-- Estado: prototipo local; no apto para publicación hasta implementar un encaminador verificable y repetir validación de red
+- Estado: prototipo local verificado en AVD API 34 (WebView + resolvedor del sistema); pendiente de validación en varios navegadores y redes físicas antes de publicación
 - Fecha: 2026-11-08
 
 ## Contexto
@@ -13,7 +13,7 @@ Proyect X declara un único `VpnService` protegido por `BIND_VPN_SERVICE`, prepa
 
 El servicio no tendrá servidor VPN remoto, inspección TLS ni contenido de navegadores. Su estado se muestra en una notificación de primer plano y pantalla local. El código limita paquetes a 4096 bytes DNS, timeout a 3 segundos, no persiste consultas y cierra la interfaz al detenerse o revocarse. Antes de declarar cobertura se debe demostrar red, cancelación, cierre de recursos y recuperación de fallos en AVD aislado.
 
-La prueba controlada en AVD del 2026-11-09 aprobó consentimiento, servicio en primer plano, notificación y parada; sin embargo, una regla local de bloqueo para dominios controlados no bloqueó solicitudes nuevas desde WebView ni desde el resolvedor del sistema. La causa observada es que un túnel limitado a rutas del servidor DNS virtual no obliga de forma fiable a esos clientes a entregar sus consultas a la interfaz. Un túnel de ruta por defecto sin reenvío TCP/UDP completo rompería el tráfico restante y no es una solución aceptable. Hasta disponer de un encaminador completo, pruebas de red repetibles y revisión de privacidad, esta capacidad queda fuera de la publicación.
+La prueba controlada en AVD del 2026-11-09 aprobó consentimiento, servicio en primer plano, notificación, parada, revocación del sistema (`onRevoke`) y bloqueo efectivo de dominios en `WebView Browser Tester` (`net::ERR_NAME_NOT_RESOLVED` para `1-1-1-1.nip.io` bajo regla `BLOCK nip.io`) y en el resolvedor nativo (`ping: unknown host 7-7-7-7.nip.io`), permitiendo simultáneamente dominios no bloqueados (`example.com`) tras corregir el cálculo de día de la semana (`ScheduleWindow.dayIndexFromCalendarDayOfWeek`) y la reconciliación de estado del servicio tras reinstalación o muerte del proceso. Siguen pendientes las pruebas en varios navegadores comerciales, conmutación Wi-Fi/datos móviles y dispositivos físicos antes de publicar la capacidad en tienda.
 
 ## Always-on y revocación
 

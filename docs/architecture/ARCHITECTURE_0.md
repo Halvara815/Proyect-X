@@ -8,7 +8,7 @@ Fecha: 2026-11-08
 - El motor puro (`Rule`, `RuleEngine`) normaliza dominios, palabras y paquetes; una regla `ALLOW` vence a una regla `BLOCK`.
 - `RuleStore` guarda reglas como JSON en `SharedPreferences` privadas. `FocusSessionStore` persiste solo inicio/fin del temporizador local.
 - `AppBlockAccessibilityService` recibe el evento de cambio de ventana y evalúa únicamente el nombre de paquete. No solicita contenido de ventanas, URLs ni texto de otras apps. Con Acceso de uso explícito y un presupuesto configurado, consulta solo el agregado local del día para ese paquete y no lo persiste.
-- No existen permisos de red, cuentas, analítica, nube, VPN, superposición ni receptor de arranque. `PACKAGE_USAGE_STATS` es opcional y se usa exclusivamente para presupuestos locales tras divulgación y autorización manual.
+- No existen permisos de cuentas, analítica, nube, superposición (`SYSTEM_ALERT_WINDOW`), `QUERY_ALL_PACKAGES` ni receptor de arranque. `PACKAGE_USAGE_STATS` es opcional y se usa exclusivamente para presupuestos locales tras divulgación y autorización manual. `BIND_VPN_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE`, `POST_NOTIFICATIONS` e `INTERNET` existen únicamente para el resolvedor DNS UDP local opcional (`DnsVpnService`, ADR-004).
 - La automatización de GitHub Actions compila las variantes debug/release y ejecuta las pruebas JVM del motor.
 
 ## Flujo crítico actual

@@ -42,6 +42,18 @@ public final class ScheduleWindowSmokeTest {
                 RuleEngine.Decision.BLOCK,
                 RuleEngine.evaluatePackageAt("com.example.legacy", List.of(legacy), ScheduleWindow.SUNDAY, 3 * 60));
         expectFailure(() -> ScheduleWindow.of(1 << ScheduleWindow.MONDAY, 8 * 60, 8 * 60));
+        assertEquals(ScheduleWindow.MONDAY, ScheduleWindow.dayIndexFromCalendarDayOfWeek(java.util.Calendar.MONDAY));
+        assertEquals(ScheduleWindow.TUESDAY, ScheduleWindow.dayIndexFromCalendarDayOfWeek(java.util.Calendar.TUESDAY));
+        assertEquals(
+                ScheduleWindow.WEDNESDAY, ScheduleWindow.dayIndexFromCalendarDayOfWeek(java.util.Calendar.WEDNESDAY));
+        assertEquals(
+                ScheduleWindow.THURSDAY, ScheduleWindow.dayIndexFromCalendarDayOfWeek(java.util.Calendar.THURSDAY));
+        assertEquals(ScheduleWindow.FRIDAY, ScheduleWindow.dayIndexFromCalendarDayOfWeek(java.util.Calendar.FRIDAY));
+        assertEquals(
+                ScheduleWindow.SATURDAY, ScheduleWindow.dayIndexFromCalendarDayOfWeek(java.util.Calendar.SATURDAY));
+        assertEquals(ScheduleWindow.SUNDAY, ScheduleWindow.dayIndexFromCalendarDayOfWeek(java.util.Calendar.SUNDAY));
+        expectFailure(() -> ScheduleWindow.dayIndexFromCalendarDayOfWeek(0));
+        expectFailure(() -> ScheduleWindow.dayIndexFromCalendarDayOfWeek(8));
         System.out.println("ScheduleWindow smoke tests: PASS");
     }
 

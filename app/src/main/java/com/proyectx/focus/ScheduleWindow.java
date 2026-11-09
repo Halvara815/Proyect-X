@@ -96,6 +96,13 @@ public final class ScheduleWindow {
         return text.toString();
     }
 
+    public static int dayIndexFromCalendarDayOfWeek(int calendarDayOfWeek) {
+        if (calendarDayOfWeek < java.util.Calendar.SUNDAY || calendarDayOfWeek > java.util.Calendar.SATURDAY) {
+            throw new IllegalArgumentException("Calendar day of week must be Sunday through Saturday");
+        }
+        return (calendarDayOfWeek + 5) % 7;
+    }
+
     public static String timeDisplayText(int minuteOfDay) {
         validateMinute(minuteOfDay);
         return String.format(java.util.Locale.getDefault(), "%02d:%02d", minuteOfDay / 60, minuteOfDay % 60);

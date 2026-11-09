@@ -69,6 +69,7 @@ jobs:
             tools/PolicyBundleVerifierSmokeTest.java
             tools/PolicyBundleStateSmokeTest.java
             tools/LocalDayWindowSmokeTest.java
+            tools/ReleaseGovernanceSmokeTest.java
           )
           javac -encoding UTF-8 -d build/smoke "${sources[@]}"
           tests=(
@@ -77,6 +78,7 @@ jobs:
             DnsResponseBuilderSmokeTest LocalDnsPolicySmokeTest DnsResolutionExecutorSmokeTest DnsCoverageLabSmokeTest DnsParserRobustnessSmokeTest AccessibilityPrivacyBoundarySmokeTest PolicyBundleVerifierSmokeTest PolicyBundleStateSmokeTest LocalDayWindowSmokeTest
             DnsVpnPacketCodecSmokeTest
             DnsVpnPrivacyBoundarySmokeTest
+            ReleaseGovernanceSmokeTest
           )
           for test in "${tests[@]}"; do java -cp build/smoke "com.proyectx.focus.${test}"; done
       - name: Install Android SDK platform 37.0

@@ -12,7 +12,7 @@ El código y la documentación propios de este repositorio se publican bajo [Apa
 | Bloqueo de paquetes Android | Implementado, opcional | Servicio de accesibilidad que usa solo el paquete en primer plano |
 | Panel y sesión de enfoque | Implementado | Dashboard propio y temporizador local sin red |
 | Límite diario por aplicación | Implementado localmente, pendiente de validación OEM | Requiere Acceso de uso y Accesibilidad habilitados por la persona; no guarda totales |
-| Filtro DNS de dominios | Prototipo local, no apto para publicación | Política incorporada `test-domain-policy-v1` verificada por SHA-256; el AVD demostró que el resolvedor del sistema/WebView puede evitar el túnel DNS parcial |
+| Filtro DNS de dominios | Prototipo local verificado en AVD, pendiente de validación multi-navegador | Política incorporada `test-domain-policy-v1` verificada por SHA-256; bloqueo DNS UDP verificado en WebView y resolvedor nativo de AVD API 34 |
 
 ## Investigación de referencia
 
@@ -47,7 +47,7 @@ El APK de desarrollo se genera en `app/build/outputs/apk/debug/`. Puede devolver
 4. Para el filtro DNS opcional, abre **Cobertura web**, lee su divulgación, concede notificaciones y aprueba el diálogo VPN del sistema. Usa **Detener filtro DNS**, la notificación o Ajustes para apagarlo.
 5. Puedes revocar Acceso de uso o VPN en cualquier momento desde Ajustes. Proyect X no conserva el historial ni los totales de uso. Desinstalar la app elimina su configuración local conforme a Android.
 
-El prototipo DNS solo trata DNS UDP. Private DNS, DNS TCP, DoH/DoT, QUIC, acceso por IP, resolutores propios y VPN de terceros quedan fuera de cobertura. Además, la prueba en AVD de 2026-11-09 comprobó que un túnel de rutas DNS parciales no fuerza al resolvedor del sistema ni a WebView a usarlo. Las consultas que sí llegan al prototipo se envían a `1.1.1.1:53` sin que Proyect X las registre. Consulta la política de privacidad antes de activarlo; no es una protección web lista para usar.
+El prototipo DNS solo trata DNS UDP. Private DNS, DNS TCP, DoH/DoT, QUIC, acceso por IP, resolutores propios y VPN de terceros quedan fuera de cobertura. En AVD API 34 se comprobó que `DnsVpnService` bloquea dominios con `NXDOMAIN` local en `WebView Browser Tester` y en el resolvedor nativo cuando Private DNS está desactivado, y delega las consultas permitidas a `1.1.1.1:53` sin que Proyect X las registre. Faltan pruebas en varios navegadores comerciales y redes móviles/físicas antes de declararlo listo para producción.
 
 Para validar la lógica sin Android:
 
@@ -76,8 +76,9 @@ java -cp build\smoke com.proyectx.focus.FocusSessionSmokeTest
 - [Arquitectura actual](docs/architecture/ARCHITECTURE_0.md)
 - [Plan de construcción por slices](docs/BUILD_PLAN.md)
 - [Fases para una app completa](docs/FASES_PRODUCTO.md)
+- [Firma de release, verificación, notas de versión y rollback](docs/RELEASE.md)
 - [Investigación REA del APK de referencia](docs/INVESTIGACION_REA_BLOCKERX_5_0_61.md)
 
 ## Licencia y nombre
 
-Antes de publicar, el equipo debe seleccionar una licencia y una identidad visual propia para Proyect X. La investigación no implica afiliación con Atmana Tech.
+El código y la documentación propios de Proyect X se publican bajo [Apache-2.0](LICENSE). La investigación comparativa no implica afiliación con Atmana Tech.

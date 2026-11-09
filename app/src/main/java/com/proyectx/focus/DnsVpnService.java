@@ -49,6 +49,7 @@ public final class DnsVpnService extends VpnService {
     private static final long DNS_TIMEOUT_MILLIS = 3_000L;
     private static final String UPSTREAM_ADDRESS = "1.1.1.1";
     private static final int UPSTREAM_PORT = 53;
+    private static volatile boolean running;
     private final AtomicBoolean stopping = new AtomicBoolean();
     private final Object tunnelWriteLock = new Object();
     private volatile ParcelFileDescriptor tunnel;
@@ -83,10 +84,16 @@ public final class DnsVpnService extends VpnService {
 
     public static Status readStatus(Context context) {
         SharedPreferences preferences = context.getSharedPreferences(PREFS, MODE_PRIVATE);
-        return new Status(
-                preferences.getString(STATE, STATE_STOPPED),
-                preferences.getString(DETAIL, "Filtro DNS detenido."),
-                preferences.getLong(UPDATED_AT, 0L));
+        String state = preferences.getString(STATE, STATE_STOPPED);
+        String detail = preferences.getString(DETAIL, "Filtro DNS detenido.");
+        long updatedAt = preferences.getLong(UPDATED_AT, 0L);
+        if (!running && (STATE_ACTIVE.equals(state) || STATE_STARTING.equals(state))) {
+            return new Status(
+                    STATE_STOPPED,
+                    "Filtro DNS detenido tras reinicio del proceso; puedes reactivarlo cuando quieras.",
+                    updatedAt);
+        }
+        return new Status(state, detail, updatedAt);
     }
 
     @Override
@@ -103,8 +110,8 @@ public final class DnsVpnService extends VpnService {
             stopFilter(STATE_STOPPED, "Filtro DNS detenido por la persona usuaria.");
             return START_NOT_STICKY;
         }
-        boolean recoverActiveFilter =
-                intent == null && STATE_ACTIVE.equals(readStatus(this).state());
+        boolean recoverActiveFilter = intent == null
+                && STATE_ACTIVE.equals(getSharedPreferences(PREFS, MODE_PRIVATE).getString(STATE, STATE_STOPPED));
         if (ACTION_START.equals(action) || recoverActiveFilter) {
             startFilter();
             return START_STICKY;
@@ -141,6 +148,7 @@ public final class DnsVpnService extends VpnService {
             return;
         }
         writeStatus(STATE_STARTING, "Preparando el resolvedor DNS local.");
+        running = true;
         startForeground(NOTIFICATION_ID, notification("Iniciando filtro DNS"));
         try {
             ParcelFileDescriptor established = new Builder()
@@ -206,7 +214,7 @@ public final class DnsVpnService extends VpnService {
             LocalDnsPolicy.Result decision = LocalDnsPolicy.evaluate(
                     dnsQuery,
                     activeRules,
-                    now.get(Calendar.DAY_OF_WEEK) - 1,
+                    ScheduleWindow.dayIndexFromCalendarDayOfWeek(now.get(Calendar.DAY_OF_WEEK)),
                     now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE));
             byte[] dnsResponse = DnsResolutionExecutor.execute(
                     decision, dnsQuery, DNS_TIMEOUT_MILLIS, stopping::get, this::resolveUpstream);
@@ -255,6 +263,7 @@ public final class DnsVpnService extends VpnService {
     }
 
     private void releaseResources() {
+        running = false;
         ExecutorService executor = workers;
         if (executor != null) executor.shutdownNow();
         closeTunnel();

@@ -19,7 +19,7 @@ public final class AppBlockAccessibilityService extends AccessibilityService {
             String packageName = RuleEngine.normalizePackageName(rawPackage.toString());
             if (packageName.equals(getPackageName())) return;
             Calendar now = Calendar.getInstance();
-            int day = (now.get(Calendar.DAY_OF_WEEK) + 5) % 7;
+            int day = ScheduleWindow.dayIndexFromCalendarDayOfWeek(now.get(Calendar.DAY_OF_WEEK));
             int minuteOfDay = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE);
             RuleEngine.Decision decision =
                     RuleEngine.evaluatePackageAt(packageName, new RuleStore(this).list(), day, minuteOfDay);

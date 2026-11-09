@@ -20,10 +20,15 @@ Un cambio de normalización, reglas o respuestas DNS debe mantener esta prueba y
 
 ## Validación de transporte AVD (2026-11-09)
 
-El AVD API 34 confirmó el consentimiento VPN, el servicio en primer plano, la notificación y su parada limpia. También confirmó una limitación bloqueante: reglas temporales para `example.com`, `iana.org` y `nip.io` no impidieron cargas nuevas en WebView ni una resolución del sistema, incluso con Private DNS del AVD desactivado. La prueba limpió reglas y estado al terminar.
+El AVD API 34 confirmó el consentimiento VPN, el servicio en primer plano, la notificación y su parada limpia. En la primera prueba (realizada con fecha domingo en el emulador), las reglas de dominio parecieron no aplicarse por dos causas combinadas que fueron diagnosticadas y corregidas:
 
-En una repetición posterior, AVD API 34 confirmó además la revocación de Android: con el servicio activo, Ajustes mostró `Proyect X — Connected`; al elegir **Disconnect**, `onRevoke()` persistió el estado `REVOKED`, informó que la VPN ya no estaba activa y el servicio dejó de aparecer en `dumpsys activity services`. Esto no sustituye las pruebas pendientes de reinicio del proceso, teléfono, Wi-Fi/datos y navegadores.
+1. **Defecto de índice de día en domingo (`Calendar.SUNDAY = 1`):** `DnsVpnService` pasaba `now.get(Calendar.DAY_OF_WEEK) - 1` (`0` en domingo, que en `ScheduleWindow` es `MONDAY`), pero si además ocurría en otra zona o ventana, difería del cálculo `(DAY_OF_WEEK + 5) % 7` de `AppBlockAccessibilityService`. Se unificaron ambos servicios mediante `ScheduleWindow.dayIndexFromCalendarDayOfWeek(int)` con prueba unitaria para los 7 días.
+2. **Estado obsoleto tras `adb install -r` o muerte del proceso:** Android detenía el proceso de `DnsVpnService` al reinstalar o tras `am crash`, pero `proyect_x_dns_vpn.xml` conservaba `STATE_ACTIVE`, haciendo que la UI mostrara el filtro como activo cuando ningún túnel `tun0` estaba vivo. Se añadió reconciliación en `DnsVpnService.readStatus` frente al estado real en memoria del servicio.
 
-La simulación de crash con `adb shell am crash com.proyectx.focus` no recuperó el proceso durante la ventana observada: Android dejó un `ServiceRecord` con `app=null` y la notificación previa visible. Tanto `START_STICKY` como un experimento con redelivery explícito resultaron insuficientes en este AVD; se retiró el experimento y el criterio de recuperación permanece abierto. No se interpreta este resultado como recuperación correcta.
+Tras corregir ambas causas y activar limpiamente `DnsVpnService` en `emulator-5554` (AVD API 34, `Private DNS = off`, red `netId=112`, interfaz `tun0` con `10.239.0.2/32` y `fd12:3456:789a::2/128`):
 
-No se contabiliza como cobertura DNS. La implementación de transporte debe sustituirse o ampliarse con encaminamiento verificable antes de reabrir pruebas de bloqueo en navegador.
+- `ping -c 1 -W 2 7-7-7-7.nip.io` (cubierto por regla local `BLOCK nip.io`) devolvió `ping: unknown host 7-7-7-7.nip.io` (`NXDOMAIN` local).
+- `WebView Browser Tester 113.0.5672.136` al abrir `http://1-1-1-1.nip.io/` devolvió `Webpage not available — net::ERR_NAME_NOT_RESOLVED`.
+- `WebView Browser Tester 113.0.5672.136` al abrir `http://example.com/` (no bloqueado) resolvió vía `1.1.1.1:53` con socket protegido y cargó `Example Domain`.
+
+En una prueba separada, AVD API 34 confirmó la revocación desde Ajustes de Android (`onRevoke` persistió `REVOKED` y detuvo el servicio) y la reconciliación visual tras `adb shell am crash com.proyectx.focus` (`Filtro DNS detenido tras reinicio del proceso; puedes reactivarlo cuando quieras`). Siguen abiertos los criterios que exigen pruebas de reinicio completo del teléfono, conmutación Wi-Fi/datos móviles reales y varios navegadores comerciales fuera del WebView del emulador.
