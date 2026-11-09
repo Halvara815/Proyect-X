@@ -105,7 +105,7 @@ Los criterios marcados **N/A** son condicionales y quedan fuera de la métrica: 
 - [x] Revisión de publicación de AccessibilityService, Usage Access y ausencia de VPN con gate documentado antes de todo cambio de permisos.
 - [x] Manual de configuración y desactivación de reglas, presupuesto, Acceso de uso y Accesibilidad.
 - [ ] Pruebas de restauración de configuración en dispositivos físicos.
-- [ ] Matriz pública de cobertura y limitaciones actualizada por versión.
+- [x] Matriz pública de cobertura y limitaciones actualizada por versión: `docs/COMPATIBILIDAD.md` documenta `0.1.0`/commit público y distingue evidencia AVD, límites y pruebas físicas pendientes.
 - [ ] Firma de release, verificación de artefactos, notas de versión y plan de rollback/fix-forward.
 
 **Criterio de aceptación:** el producto informa límites antes de vender seguridad, supera la revisión de privacidad y cuenta con un procedimiento de reversión probado.

@@ -1,5 +1,9 @@
 # Matriz de compatibilidad y cobertura
 
+**Versión evaluada:** `0.1.0` (`versionCode` 1)
+**Fecha de actualización:** 2026-11-09
+**Commit público:** `aea22f7c6266458c0e2905a75ff611764fb10ed8`
+
 Esta matriz distingue evidencia observada de hipótesis. No se debe extrapolar una prueba de emulador a dispositivos físicos.
 
 | Área | Entorno probado | Estado | Límite conocido |
