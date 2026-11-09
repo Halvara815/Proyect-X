@@ -179,6 +179,9 @@
          </artifact>
       </component>
       <component group="com.android.tools.build" name="aapt2" version="9.4.1-15978811">
+         <artifact name="aapt2-9.4.1-15978811-linux.jar">
+            <sha256 value="f5bebd466ecf14d341fd465f2756a16d86052f29eb4532003d5ff7bcffd08de5" origin="Google Maven SHA-256; reviewed for Linux CI AAPT2 resolution"/>
+         </artifact>
          <artifact name="aapt2-9.4.1-15978811-windows.jar">
             <sha256 value="5fe3c8ee5c6b3f47efd1fced1d6418084037f54f13290816c5db717e6b5c92aa" origin="Local Gradle cache; reviewed after detached AAPT2 resolution"/>
          </artifact>
