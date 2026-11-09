@@ -67,6 +67,7 @@ public final class MainActivity extends Activity {
     private TextView ruleCountView;
     private TextView protectionStatusView;
     private TextView dnsStatusView;
+    private ImageView dnsPowerIcon;
     private TextView sessionTitleView;
     private TextView sessionDetailView;
     private TextView domainRuleCountView;
@@ -260,8 +261,16 @@ public final class MainActivity extends Activity {
                         MUTED,
                         Typeface.NORMAL),
                 marginTop(6));
+        LinearLayout dnsStatusRow = row(Gravity.CENTER_VERTICAL);
+        dnsPowerIcon = new ImageView(this);
+        dnsPowerIcon.setImageResource(R.drawable.ic_power_status);
+        dnsPowerIcon.setColorFilter(MUTED);
+        dnsPowerIcon.setContentDescription("Filtro DNS detenido");
+        dnsStatusRow.addView(dnsPowerIcon, size(dp(24), dp(24)));
         dnsStatusView = text("Filtro DNS detenido.", 13, MUTED, Typeface.NORMAL);
-        coverage.addView(dnsStatusView, marginTop(8));
+        dnsStatusView.setPadding(dp(8), 0, 0, 0);
+        dnsStatusRow.addView(dnsStatusView, weight());
+        coverage.addView(dnsStatusRow, marginTop(8));
         if (isThirdPartyVpnActive()) {
             coverage.addView(
                     text(
@@ -419,6 +428,12 @@ public final class MainActivity extends Activity {
                 DnsVpnService.STATE_ERROR.equals(status.state()) || DnsVpnService.STATE_REVOKED.equals(status.state());
         dnsStatusView.setText(status.detail());
         dnsStatusView.setTextColor(active ? PRIMARY : attention ? DANGER : MUTED);
+        if (dnsPowerIcon != null) {
+            int statusColor = active ? PRIMARY : attention ? DANGER : MUTED;
+            dnsPowerIcon.setColorFilter(statusColor);
+            dnsPowerIcon.setContentDescription(
+                    active ? "Filtro DNS activo" : attention ? "Filtro DNS necesita atención" : "Filtro DNS detenido");
+        }
         dnsAction.setText(active ? "DETENER FILTRO DNS" : attention ? "REINTENTAR FILTRO DNS" : "ACTIVAR FILTRO DNS");
         dnsAction.setBackground(round(active ? SURFACE_RAISED : PRIMARY, 14));
         dnsAction.setTextColor(active ? DANGER : Color.WHITE);
@@ -1137,22 +1152,41 @@ public final class MainActivity extends Activity {
         return navigation;
     }
 
-    private TextView destinationButton(String destination, String title) {
+    private LinearLayout destinationButton(String destination, String title) {
         boolean selected = destination.equals(activeDestination);
-        TextView tile = text((selected ? "●\n" : "○\n") + title, 11, selected ? TEXT : MUTED, Typeface.BOLD);
+        int foreground = selected ? TEXT : MUTED;
+        LinearLayout tile = column();
         tile.setGravity(Gravity.CENTER);
         tile.setContentDescription(title);
         tile.setClickable(true);
         tile.setFocusable(true);
-        tile.setMinHeight(dp(56));
-        tile.setLineSpacing(0f, 0.92f);
+        tile.setMinimumHeight(dp(56));
         tile.setPadding(dp(2), dp(4), dp(2), dp(4));
         tile.setBackground(round(selected ? ACCENT : SURFACE, 16));
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(navigationIcon(destination));
+        icon.setColorFilter(foreground);
+        icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        tile.addView(icon, size(ViewGroup.LayoutParams.MATCH_PARENT, dp(24)));
+        TextView label = text(title, 11, foreground, Typeface.BOLD);
+        label.setGravity(Gravity.CENTER);
+        label.setPadding(0, dp(2), 0, 0);
+        label.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        tile.addView(label, size(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         tile.setOnClickListener(view -> {
             if (destination.equals(activeDestination)) return;
             switchDestination(destination);
         });
         return tile;
+    }
+
+    private int navigationIcon(String destination) {
+        return switch (destination) {
+            case "proteccion" -> R.drawable.ic_nav_barreras;
+            case "reglas" -> R.drawable.ic_nav_reglas;
+            case "reinicio" -> R.drawable.ic_nav_reinicio;
+            default -> R.drawable.ic_nav_inicio;
+        };
     }
 
     private void switchDestination(String destination) {
