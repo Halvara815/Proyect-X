@@ -45,14 +45,17 @@ import java.util.List;
 public final class MainActivity extends Activity {
     private static final int DNS_VPN_CONSENT_REQUEST = 4_201;
     private static final int DNS_NOTIFICATION_REQUEST = 4_202;
-    private static final int BACKGROUND = Color.rgb(12, 18, 32);
-    private static final int SURFACE = Color.rgb(21, 30, 48);
-    private static final int SURFACE_RAISED = Color.rgb(29, 41, 64);
-    private static final int PRIMARY = Color.rgb(104, 228, 168);
-    private static final int ACCENT = Color.rgb(141, 169, 255);
-    private static final int TEXT = Color.rgb(245, 247, 251);
-    private static final int MUTED = Color.rgb(174, 187, 207);
-    private static final int DANGER = Color.rgb(255, 180, 171);
+    // Original Proyect X visual tokens. They intentionally do not derive from reference products.
+    private static final int BACKGROUND = Color.rgb(246, 242, 234);
+    private static final int SURFACE = Color.WHITE;
+    private static final int SURFACE_RAISED = Color.rgb(232, 239, 233);
+    private static final int PRIMARY = Color.rgb(22, 122, 104);
+    private static final int ACCENT = Color.rgb(199, 243, 107);
+    private static final int TEXT = Color.rgb(22, 51, 45);
+    private static final int MUTED = Color.rgb(102, 117, 111);
+    private static final int DANGER = Color.rgb(204, 91, 56);
+    private static final int HERO = Color.rgb(228, 244, 225);
+    private static final int OUTLINE = Color.rgb(211, 221, 213);
 
     private final Handler refreshHandler = new Handler(Looper.getMainLooper());
     private final Runnable refreshRunnable = this::refreshSession;
@@ -105,36 +108,38 @@ public final class MainActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(20), dp(20), dp(20), dp(28));
+        root.setPadding(dp(20), dp(24), dp(20), dp(32));
         scroll.addView(
                 root,
                 new ScrollView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         LinearLayout header = row(Gravity.CENTER_VERTICAL);
-        TextView mark = text("PX", 15, BACKGROUND, Typeface.BOLD);
+        TextView mark = text("X", 18, Color.WHITE, Typeface.BOLD);
         mark.setGravity(Gravity.CENTER);
-        mark.setBackground(round(PRIMARY, 18));
-        header.addView(mark, size(dp(42), dp(42)));
+        mark.setBackground(round(PRIMARY, 22));
+        header.addView(mark, size(dp(44), dp(44)));
         LinearLayout headerWords = column();
         headerWords.setPadding(dp(12), 0, 0, 0);
         headerWords.addView(text("Proyect X", 26, TEXT, Typeface.BOLD));
-        headerWords.addView(text("ENFOQUE LOCAL · SIN CUENTA", 11, PRIMARY, Typeface.BOLD));
+        headerWords.addView(text("PRIVACIDAD LOCAL · SIN CUENTA", 11, PRIMARY, Typeface.BOLD));
         header.addView(headerWords, weight());
         root.addView(header);
 
         LinearLayout hero = card();
-        hero.addView(tag("TU ESPACIO DE ATENCIÓN", PRIMARY, BACKGROUND));
-        hero.addView(text("Recupera tu atención, una decisión a la vez.", 25, TEXT, Typeface.BOLD));
+        hero.setBackground(round(HERO, 24));
+        hero.setElevation(0);
+        hero.addView(tag("HOY", PRIMARY, BACKGROUND));
+        hero.addView(text("Tu día, con menos interrupciones.", 25, TEXT, Typeface.BOLD));
         hero.addView(text(
-                "Tus reglas y sesiones son locales. El filtro DNS opcional solo se activa con tu consentimiento; no hay cuenta ni analítica.",
+                "Elige una sesión, ajusta tus reglas y conoce siempre el alcance de la protección que activas.",
                 15,
                 MUTED,
                 Typeface.NORMAL));
         root.addView(hero, marginTop(16));
 
         LinearLayout metrics = row(Gravity.CENTER_VERTICAL);
-        metrics.addView(metricCard("REGLAS", "0", "configuradas"), weightWithMargin(1, 0, 0, dp(8), 0));
-        metrics.addView(metricCard("ESTADO", "Revisar", "accesibilidad"), weightWithMargin(1, 0, 0, 0, 0));
+        metrics.addView(metricCard("REGLAS ACTIVAS", "0", "en este dispositivo"), weightWithMargin(1, 0, 0, dp(8), 0));
+        metrics.addView(metricCard("COBERTURA", "Revisar", "permisos y modos"), weightWithMargin(1, 0, 0, 0, 0));
         root.addView(metrics, marginTop(12));
         ruleCountView = (TextView) ((LinearLayout) metrics.getChildAt(0)).getChildAt(1);
         protectionStatusView = (TextView) ((LinearLayout) metrics.getChildAt(1)).getChildAt(1);
@@ -160,13 +165,13 @@ public final class MainActivity extends Activity {
                 Typeface.NORMAL));
         root.addView(session, marginTop(16));
 
-        root.addView(text("Protección", 20, TEXT, Typeface.BOLD), marginTop(22));
+        root.addView(text("Protección del dispositivo", 21, TEXT, Typeface.BOLD), marginTop(26));
         root.addView(text(
                 "Activa el servicio solo si deseas bloquear paquetes Android. Android siempre pide esta aprobación manualmente.",
                 14,
                 MUTED,
                 Typeface.NORMAL));
-        Button accessibility = button("ABRIR AJUSTES DE ACCESIBILIDAD", SURFACE_RAISED, TEXT);
+        Button accessibility = button("REVISAR ACCESIBILIDAD", SURFACE_RAISED, TEXT);
         accessibility.setOnClickListener(view -> openAccessibilitySettings());
         root.addView(accessibility, marginTop(10));
 
@@ -305,8 +310,8 @@ public final class MainActivity extends Activity {
         dnsStatusView.setText(status.detail());
         dnsStatusView.setTextColor(active ? PRIMARY : attention ? DANGER : MUTED);
         dnsAction.setText(active ? "DETENER FILTRO DNS" : attention ? "REINTENTAR FILTRO DNS" : "ACTIVAR FILTRO DNS");
-        dnsAction.setBackground(round(active ? SURFACE_RAISED : PRIMARY, 12));
-        dnsAction.setTextColor(active ? DANGER : BACKGROUND);
+        dnsAction.setBackground(round(active ? SURFACE_RAISED : PRIMARY, 14));
+        dnsAction.setTextColor(active ? DANGER : Color.WHITE);
     }
 
     private void refreshSession() {
@@ -389,7 +394,7 @@ public final class MainActivity extends Activity {
             LinearLayout item = card();
             LinearLayout top = row(Gravity.CENTER_VERTICAL);
             int actionColor = rule.action() == Rule.Action.BLOCK ? DANGER : PRIMARY;
-            top.addView(tag(rule.action() == Rule.Action.BLOCK ? "BLOQUEAR" : "PERMITIR", actionColor, BACKGROUND));
+            top.addView(tag(rule.action() == Rule.Action.BLOCK ? "BLOQUEAR" : "PERMITIR", actionColor, SURFACE_RAISED));
             TextView category = text(
                     rule.type() == Rule.Type.APP
                             ? "PAQUETE ANDROID"
@@ -887,7 +892,7 @@ public final class MainActivity extends Activity {
 
     private LinearLayout metricCard(String caption, String value, String detail) {
         LinearLayout card = card();
-        card.setPadding(dp(14), dp(12), dp(14), dp(12));
+        card.setPadding(dp(16), dp(14), dp(16), dp(14));
         card.addView(text(caption, 10, MUTED, Typeface.BOLD));
         card.addView(text(value, 18, TEXT, Typeface.BOLD));
         card.addView(text(detail, 12, MUTED, Typeface.NORMAL));
@@ -897,15 +902,16 @@ public final class MainActivity extends Activity {
     private Spinner spinner(String[] values) {
         Spinner spinner = new Spinner(this);
         spinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, values));
-        spinner.setBackground(outline(SURFACE_RAISED, SURFACE_RAISED, 12));
+        spinner.setBackground(outline(SURFACE, OUTLINE, 14));
         spinner.setPadding(dp(12), dp(4), dp(12), dp(4));
         return spinner;
     }
 
     private LinearLayout card() {
         LinearLayout card = column();
-        card.setPadding(dp(18), dp(16), dp(18), dp(16));
-        card.setBackground(round(SURFACE, 18));
+        card.setPadding(dp(18), dp(18), dp(18), dp(18));
+        card.setBackground(outline(SURFACE, OUTLINE, 22));
+        card.setElevation(dp(1));
         return card;
     }
 
@@ -913,20 +919,20 @@ public final class MainActivity extends Activity {
         Button button = new Button(this);
         button.setAllCaps(false);
         button.setText(value);
-        button.setTextSize(13);
+        button.setTextSize(14);
         button.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
         button.setTextColor(foreground);
         button.setGravity(Gravity.CENTER);
         button.setMinHeight(dp(48));
         button.setPadding(dp(12), dp(6), dp(12), dp(6));
-        button.setBackground(round(background, 12));
+        button.setBackground(round(background, 14));
         return button;
     }
 
     private TextView tag(String value, int foreground, int background) {
         TextView tag = text(value, 10, foreground, Typeface.BOLD);
         tag.setGravity(Gravity.CENTER);
-        tag.setPadding(dp(9), dp(5), dp(9), dp(5));
+        tag.setPadding(dp(10), dp(6), dp(10), dp(6));
         tag.setBackground(round(background, 40));
         return tag;
     }
