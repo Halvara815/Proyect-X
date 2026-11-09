@@ -15,6 +15,9 @@ public final class DnsVpnPrivacyBoundarySmokeTest {
         require(manifest.contains("android.permission.FOREGROUND_SERVICE_SPECIAL_USE"));
         require(source.contains("void onRevoke()"));
         require(source.contains("stopFilter(STATE_REVOKED"));
+        require(source.contains("recoverIfNeeded("));
+        require(source.contains("killSwitch("));
+        require(source.contains("VpnService.SERVICE_INTERFACE"));
         require(source.contains("if (!protect(socket))"));
         require(source.contains("DnsVpnPacketCodec.parseDnsQuery"));
         require(source.contains("DnsResolutionExecutor.execute"));
@@ -22,6 +25,9 @@ public final class DnsVpnPrivacyBoundarySmokeTest {
         require(!source.contains("System.out"));
         require(activity.contains("VpnService.prepare(this)"));
         require(activity.contains("POST_NOTIFICATIONS"));
+        require(activity.contains("DnsVpnService.recoverIfNeeded(this)"));
+        require(activity.contains("DnsVpnService.killSwitch(this)"));
+        require(activity.contains("REINTENTAR FILTRO DNS"));
         System.out.println("DNS VPN privacy boundary: PASS");
     }
 

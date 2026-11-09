@@ -1,5 +1,6 @@
 package com.proyectx.focus;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -8,6 +9,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.net.VpnService;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
@@ -50,6 +52,7 @@ public final class DnsVpnService extends VpnService {
     private static final String UPSTREAM_ADDRESS = "1.1.1.1";
     private static final int UPSTREAM_PORT = 53;
     private static volatile boolean running;
+    private static volatile DnsVpnService activeInstance;
     private final AtomicBoolean stopping = new AtomicBoolean();
     private final Object tunnelWriteLock = new Object();
     private volatile ParcelFileDescriptor tunnel;
@@ -96,9 +99,62 @@ public final class DnsVpnService extends VpnService {
         return new Status(state, detail, updatedAt);
     }
 
+    /**
+     * Recovers an active DNS tunnel after an app process restart if the user left the filter active
+     * and Android still holds VPN consent for this package. If consent was cleared (e.g. device reboot
+     * without system always-on VPN), reconciles persisted state to STOPPED.
+     */
+    public static boolean recoverIfNeeded(Context context) {
+        if (running) return false;
+        SharedPreferences preferences = context.getSharedPreferences(PREFS, MODE_PRIVATE);
+        String state = preferences.getString(STATE, STATE_STOPPED);
+        if (!STATE_ACTIVE.equals(state)) return false;
+        boolean notificationsGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+                || context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                        == PackageManager.PERMISSION_GRANTED;
+        if (!notificationsGranted || VpnService.prepare(context) != null) {
+            writeStatus(
+                    context, STATE_STOPPED, "Filtro DNS detenido tras reinicio; puedes reactivarlo cuando quieras.");
+            return false;
+        }
+        try {
+            writeStatus(context, STATE_STARTING, "Recuperando el filtro DNS local tras reinicio del proceso.");
+            running = true;
+            Intent intent = new Intent(context, DnsVpnService.class).setAction(ACTION_START);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent);
+            else context.startService(intent);
+            return true;
+        } catch (RuntimeException exception) {
+            running = false;
+            writeStatus(context, STATE_ERROR, "No se pudo recuperar el filtro DNS automáticamente; pulsa reintentar.");
+            return false;
+        }
+    }
+
+    /**
+     * Immediate in-app kill switch. Synchronously tears down any active tunnel instance, stops the
+     * service, removes the foreground notification, and persists STOPPED.
+     */
+    public static void killSwitch(Context context) {
+        DnsVpnService current = activeInstance;
+        if (current != null) {
+            current.stopFilter(STATE_STOPPED, "Filtro DNS desactivado por el kill switch de la app.");
+        }
+        running = false;
+        writeStatus(context, STATE_STOPPED, "Filtro DNS desactivado por el kill switch de la app.");
+        try {
+            context.stopService(new Intent(context, DnsVpnService.class));
+        } catch (RuntimeException ignored) {
+            // Service was already stopped.
+        }
+        NotificationManager manager = context.getSystemService(NotificationManager.class);
+        if (manager != null) manager.cancel(NOTIFICATION_ID);
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
+        activeInstance = this;
         ruleStore = new RuleStore(this);
         createNotificationChannel();
     }
@@ -112,7 +168,7 @@ public final class DnsVpnService extends VpnService {
         }
         boolean recoverActiveFilter = intent == null
                 && STATE_ACTIVE.equals(getSharedPreferences(PREFS, MODE_PRIVATE).getString(STATE, STATE_STOPPED));
-        if (ACTION_START.equals(action) || recoverActiveFilter) {
+        if (ACTION_START.equals(action) || VpnService.SERVICE_INTERFACE.equals(action) || recoverActiveFilter) {
             startFilter();
             return START_STICKY;
         }
@@ -136,6 +192,7 @@ public final class DnsVpnService extends VpnService {
     private synchronized void startFilter() {
         if (tunnel != null || stopping.get()) return;
         if (VpnService.prepare(this) != null) {
+            running = false;
             writeStatus(STATE_ERROR, "Falta la aprobación de VPN de Android.");
             stopSelf();
             return;
@@ -143,6 +200,7 @@ public final class DnsVpnService extends VpnService {
         try {
             bundledRules = BundledDomainPolicy.load(this);
         } catch (IOException | IllegalStateException exception) {
+            running = false;
             writeStatus(STATE_ERROR, "No se pudo verificar la política DNS incorporada.");
             stopSelf();
             return;
@@ -264,6 +322,7 @@ public final class DnsVpnService extends VpnService {
 
     private void releaseResources() {
         running = false;
+        if (activeInstance == this) activeInstance = null;
         ExecutorService executor = workers;
         if (executor != null) executor.shutdownNow();
         closeTunnel();
@@ -311,9 +370,13 @@ public final class DnsVpnService extends VpnService {
         if (manager != null) manager.createNotificationChannel(channel);
     }
 
-    @SuppressLint("ApplySharedPref") // Status must survive before a foreground service stops or is revoked.
     private void writeStatus(String state, String detail) {
-        getSharedPreferences(PREFS, MODE_PRIVATE)
+        writeStatus(this, state, detail);
+    }
+
+    @SuppressLint("ApplySharedPref") // Status must survive before a foreground service stops or is revoked.
+    private static void writeStatus(Context context, String state, String detail) {
+        context.getSharedPreferences(PREFS, MODE_PRIVATE)
                 .edit()
                 .putString(STATE, state)
                 .putString(DETAIL, detail)

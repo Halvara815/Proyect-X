@@ -294,13 +294,17 @@ public final class MainActivity extends Activity {
 
     private void refreshDnsStatus() {
         if (dnsStatusView == null || dnsAction == null) return;
+        if (!isThirdPartyVpnActive() && DnsVpnService.recoverIfNeeded(this)) {
+            refreshHandler.postDelayed(this::refreshDnsStatus, 750L);
+        }
         DnsVpnService.Status status = DnsVpnService.readStatus(this);
         boolean active = DnsVpnService.STATE_ACTIVE.equals(status.state())
                 || DnsVpnService.STATE_STARTING.equals(status.state());
+        boolean attention =
+                DnsVpnService.STATE_ERROR.equals(status.state()) || DnsVpnService.STATE_REVOKED.equals(status.state());
         dnsStatusView.setText(status.detail());
-        dnsStatusView.setTextColor(
-                active ? PRIMARY : DnsVpnService.STATE_ERROR.equals(status.state()) ? DANGER : MUTED);
-        dnsAction.setText(active ? "DETENER FILTRO DNS" : "ACTIVAR FILTRO DNS");
+        dnsStatusView.setTextColor(active ? PRIMARY : attention ? DANGER : MUTED);
+        dnsAction.setText(active ? "DETENER FILTRO DNS" : attention ? "REINTENTAR FILTRO DNS" : "ACTIVAR FILTRO DNS");
         dnsAction.setBackground(round(active ? SURFACE_RAISED : PRIMARY, 12));
         dnsAction.setTextColor(active ? DANGER : BACKGROUND);
     }
@@ -779,7 +783,8 @@ public final class MainActivity extends Activity {
     private void onDnsAction() {
         DnsVpnService.Status status = DnsVpnService.readStatus(this);
         if (DnsVpnService.STATE_ACTIVE.equals(status.state()) || DnsVpnService.STATE_STARTING.equals(status.state())) {
-            startDnsService(DnsVpnService.ACTION_STOP);
+            DnsVpnService.killSwitch(this);
+            refreshDnsStatus();
             return;
         }
         if (isThirdPartyVpnActive()) {

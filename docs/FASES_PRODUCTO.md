@@ -59,7 +59,7 @@ Los criterios marcados **N/A** son condicionales y quedan fuera de la métrica: 
 - [x] Implementar parser/ejecutor DNS en biblioteca pura, con límite de tamaño, timeout acotado, cancelación, respuesta correlacionada y pruebas de paquetes malformados. El upstream sigue inyectado, sin socket ni red.
 - [x] Para dominios bloqueados responder NXDOMAIN local y consistente; para el resto delegar al upstream inyectado sin guardar historial de navegación.
 - [x] Mostrar una notificación de servicio en primer plano y una pantalla de estado: activo, detenido, error de red, política cargada, versión de lista. El AVD confirmó notificación/estado activo y detenido; la política incorporada `test-domain-policy-v1` se verifica por SHA-256 antes de iniciar.
-- [ ] Manejar `onRevoke`, reinicios, recuperación de fallos y un “kill switch” de la propia app.
+- [x] Manejar `onRevoke`, reinicios, recuperación de fallos y un “kill switch” de la propia app: `DnsVpnService` gestiona `onRevoke`, `VpnService.SERVICE_INTERFACE`, `recoverIfNeeded` tras reinicio del proceso y `killSwitch` síncrono desde `MainActivity`, con estado visible de reintento (`REINTENTAR FILTRO DNS`), verificado en AVD API 34 y protegido por `DnsVpnPrivacyBoundarySmokeTest`.
 - [ ] Validar en Wi‑Fi/datos móviles, IPv4/IPv6 y varios navegadores sin inspeccionar contenido TLS.
 
 **Criterio de aceptación:** una batería de dominios de prueba se bloquea en navegadores elegidos, no se registran consultas, y el fallo del servicio es visible y recuperable.
