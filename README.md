@@ -61,6 +61,7 @@ java -cp build\smoke com.proyectx.focus.FocusSessionSmokeTest
 
 - [Investigación y libro mayor de evidencia](docs/INVESTIGACION.md)
 - [Especificación de reconstrucción limpia](docs/RECONSTRUCCION_LIMPIA.md)
+- [Guía de diseño original y límites de referencia](docs/DISENO_ORIGINAL.md)
 - [ADR-001: límites y arquitectura inicial](docs/adr/ADR-001-reconstruccion-limpia.md)
 - [ADR-003: no observación de navegadores](docs/adr/ADR-003-no-observacion-de-navegador.md)
 - [ADR-004: VPN DNS local opcional](docs/adr/ADR-004-vpn-dns-local-opcional.md)
