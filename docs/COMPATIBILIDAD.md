@@ -1,0 +1,18 @@
+# Matriz de compatibilidad y cobertura
+
+Esta matriz distingue evidencia observada de hipótesis. No se debe extrapolar una prueba de emulador a dispositivos físicos.
+
+| Área | Entorno probado | Estado | Límite conocido |
+| --- | --- | --- | --- |
+| Instalación y lanzamiento | AVD `Blovix_API_34`, Android API 34 | Verificado | No sustituye una prueba en fabricante físico |
+| Fuente y orientación | AVD `Blovix_API_34`, fuente 1.30 y horizontal | Verificado para lanzamiento | No prueba lector de pantalla, layout visual completo ni gama baja |
+| Compilación | JDK 17, compile SDK 37, min SDK 23, target SDK 37 | Verificado | No prueba comportamiento runtime en cada API/OEM; el AVD disponible sigue en API 34 |
+| Reglas y horarios | Smoke tests JVM | Verificado | No ejercita interfaz ni servicio Android |
+| Presupuesto diario | Build e integración AVD sin conceder permiso | Parcial | Falta conceder/revocar Usage Access y medir precisión en OEM físicos |
+| Accesibilidad | Flujo instalado en AVD | Parcial | Fabricantes pueden limitar eventos o lanzamientos desde servicios |
+| Navegadores y web | WebView AVD API 34 | No apto | La prueba reveló que el resolvedor/WebView evita el túnel DNS parcial; no promete cobertura de URLs, DoH/DoT, QUIC, TCP DNS ni IP directa |
+| Wi-Fi, datos, IPv4/IPv6 | Códec JVM IPv4/IPv6 | Parcial | Falta validar la interfaz VPN, el upstream y recuperación en AVD para cada red |
+| Revocación VPN | AVD API 34, Ajustes del sistema | Verificado | Desconectar Proyect X invoca `onRevoke`, persiste `REVOKED` y detiene el servicio; faltan reinicios/red física |
+| Modo DNS sin Accesibilidad | AVD API 34 | Verificado en AVD | `enabled_accessibility_services=null` con `DnsVpnService` activo; esto prueba independencia de permisos, no cobertura web |
+
+Cada futura entrada debe incluir versión exacta, fecha, condiciones, caso de prueba y resultado; “compatible” requiere evidencia reproducible, no solo compilación.

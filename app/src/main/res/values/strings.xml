@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">Proyect X consulta únicamente el nombre de la aplicación que llega al primer plano para aplicar reglas locales de bloqueo. No lee el texto, las URL ni el contenido de otras aplicaciones.</string>
+    <string name="session_idle_title">Sesión de enfoque</string>
+    <string name="session_idle_detail">Sin sesión activa. Elige un bloque de tiempo para tu intención.</string>
+    <string name="session_start">INICIAR SESIÓN</string>
+    <string name="session_active_title">En enfoque ahora</string>
+    <string name="session_remaining">Quedan aproximadamente %1$d min. Tus reglas siguen siendo privadas y locales.</string>
+    <string name="session_finish">FINALIZAR SESIÓN</string>
+    <string name="installed_app_picker">ELEGIR APLICACIÓN INSTALADA</string>
+    <string name="installed_app_picker_loading">CARGANDO APLICACIONES…</string>
+</resources>

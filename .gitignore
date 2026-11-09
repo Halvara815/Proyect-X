@@ -1,0 +1,25 @@
+# Materiales de ingeniería inversa o de usuario: nunca versionar
+artifacts/
+*.apk
+*.aab
+*.apks
+*.xapk
+*.ipa
+*.keystore
+*.jks
+*.pem
+*.p12
+*.mobileprovision
+
+# Android / Gradle
+.gradle/
+build/
+**/build/
+local.properties
+.idea/
+*.iml
+
+# SO y editores
+.DS_Store
+Thumbs.db
+.vscode/

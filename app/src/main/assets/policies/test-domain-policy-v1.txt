@@ -1,0 +1,6 @@
+# Proyect X test policy v1
+# License: CC0-1.0. Authored only for automated and emulator validation.
+# Format: action domain
+block adult-test.invalid
+block media-test.invalid
+allow safe.adult-test.invalid
