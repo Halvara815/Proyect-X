@@ -18,7 +18,7 @@ Los criterios marcados **N/A** son condicionales y quedan fuera de la métrica: 
 - [x] CI ejecuta lint vital de Android, rechaza patrones obvios de secretos y verifica SHA-256 de dependencias/plugins mediante `gradle/verification-metadata.xml`.
 - [x] Revisar licencias declaradas por la SBOM, fijar acciones CI por commit y revisar cambios de dependencias contra advisories de GitHub.
 - [x] Añadir formato uniforme verificable con Spotless para Java, Gradle, Markdown y workflows.
-- [x] Añadir una fuente de advisories adicional para análisis periódico fuera de pull requests: OSV-Scanner programado cada lunes y ejecutable manualmente, fijado por SHA; primera ejecución observada en GitHub Actions (`42647220155`) con subida SARIF a Code Scanning verificada.
+- [x] Añadir una fuente de advisories adicional para análisis periódico fuera de pull requests: OSV-Scanner programado cada lunes y ejecutable manualmente, fijado por SHA; ejecución verde del gate de dependencias del APK observada en GitHub Actions (`42700005626`) con subida SARIF a Code Scanning verificada.
 - [x] Seleccionar licencia antes de publicar: el titular publica el código y documentación propios bajo Apache-2.0; `LICENSE` excluye artefactos de terceros, APKs y secretos que el repositorio no contiene.
 - [x] Política de privacidad local, soporte y proceso de divulgación de vulnerabilidades, sin canal público que exponga datos sensibles.
 - [x] Publicar una matriz de compatibilidad que distingue API/AVD verificado de fabricantes y navegadores aún no probados.
@@ -91,7 +91,7 @@ Los criterios marcados **N/A** son condicionales y quedan fuera de la métrica: 
 - [ ] Si se introducen secretos, cifrarlos con una clave gestionada por Android y añadir migración/revocación probadas.
 - [x] Generar SBOM CycloneDX desde el grafo resuelto, revisar licencias declaradas y verificar SHA-256 de dependencias/plugins en CI.
 - [x] Fijar acciones CI por commit y revisar cambios de dependencias contra advisories de GitHub.
-- [x] Añadir análisis periódico de dependencias fuera de pull requests: OSV-Scanner programado cada lunes y ejecutable manualmente, fijado por SHA; primera ejecución observada en GitHub Actions (`42647220155`) con subida SARIF a Code Scanning verificada.
+- [x] Añadir análisis periódico de dependencias fuera de pull requests: OSV-Scanner programado cada lunes y ejecutable manualmente, fijado por SHA; ejecución verde del gate de dependencias del APK observada en GitHub Actions (`42700005626`) con subida SARIF a Code Scanning verificada.
 - [x] Barrido determinista de 12 000 paquetes DNS malformados y límites de tamaño/cancelación en biblioteca pura.
 - [ ] Pruebas en dispositivo de batería, memoria, pérdida de red, rotación, reinicio del proceso y reinicio del teléfono.
 - [x] Telemetría desactivada: no hay permiso de red, SDK de analítica ni cliente de telemetría. Cualquier diagnóstica futura será opcional, agregada y sin dominios/URLs.
