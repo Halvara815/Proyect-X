@@ -115,10 +115,8 @@ public final class MainActivity extends Activity {
     private int selectedDurationMinutes = 25;
     private boolean strictProtectionMode = true;
     private boolean masterBarrierEnabled = true;
-    private boolean browserLayerEnabled = true;
-    private boolean socialLayerEnabled = true;
     private String socialScopeMode = "todas";
-    private String localContactName = "Elena G. (Local)";
+    private String localContactName = "Sin configurar";
     private int selectedDailyLimitMinutes = 30;
     private boolean ruleEngineMasterEnabled = true;
     private Rule.Action rulesActionFilter = Rule.Action.BLOCK;
@@ -140,28 +138,69 @@ public final class MainActivity extends Activity {
         faithModeStore = new FaithModeStore(this);
         calibrationStore = new CalibrationStore(this);
         recoveryStore = new RecoveryStore(this);
-        ensureDefaultRulesSeeded();
+        syncRealInitialRules();
+        loadPersistedUiState();
         render();
         if (!calibrationStore.isCompleted()) startActivity(CalibrationActivity.intent(this));
     }
 
-    private void ensureDefaultRulesSeeded() {
-        android.content.SharedPreferences uiPrefs = getSharedPreferences("proyect_x_ui_prefs", Context.MODE_PRIVATE);
-        if (uiPrefs.getBoolean("seeded_reference_rules_v1", false)) return;
-        List<Rule> existing = ruleStore.list();
-        if (existing.size() <= 1) {
-            for (Rule r : existing) {
-                ruleStore.remove(r.id());
-            }
-            ruleStore.save(Rule.create(Rule.Type.DOMAIN, Rule.Action.BLOCK, "adult-dns-filter.local"));
-            ruleStore.save(Rule.create(Rule.Type.KEYWORD, Rule.Action.BLOCK, "nsfw / xxx / +18"));
-            ruleStore.save(Rule.create(Rule.Type.APP, Rule.Action.BLOCK, "com.zhiliaoapp.musically"));
-            ruleStore.save(Rule.create(Rule.Type.APP, Rule.Action.BLOCK, "com.instagram.android"));
-            ruleStore.save(Rule.create(Rule.Type.DOMAIN, Rule.Action.BLOCK, "reddit.com"));
-            ruleStore.save(Rule.create(Rule.Type.DOMAIN, Rule.Action.ALLOW, "wikipedia.org"));
-            ruleStore.save(Rule.create(Rule.Type.APP, Rule.Action.ALLOW, "com.android.settings"));
+    private android.content.SharedPreferences uiPrefs() {
+        return getSharedPreferences("proyect_x_ui_prefs", Context.MODE_PRIVATE);
+    }
+
+    private void loadPersistedUiState() {
+        android.content.SharedPreferences prefs = uiPrefs();
+        if (!prefs.contains("streak_started_at")) {
+            prefs.edit()
+                    .putLong("streak_started_at", System.currentTimeMillis())
+                    .apply();
         }
-        uiPrefs.edit().putBoolean("seeded_reference_rules_v1", true).apply();
+        strictProtectionMode = prefs.getBoolean("strict_protection_mode", true);
+        localContactName = prefs.getString("local_contact_name", "Sin configurar");
+        selectedDailyLimitMinutes = prefs.getInt("selected_daily_limit_minutes", 30);
+        socialScopeMode = prefs.getString("social_scope_mode", "todas");
+        List<Rule> currentRules = ruleStore.list();
+        boolean anyRuleEnabled = currentRules.isEmpty();
+        for (Rule r : currentRules) {
+            if (r.enabled()) {
+                anyRuleEnabled = true;
+                break;
+            }
+        }
+        ruleEngineMasterEnabled = anyRuleEnabled;
+        masterBarrierEnabled = anyRuleEnabled;
+    }
+
+    private void syncRealInitialRules() {
+        android.content.SharedPreferences prefs = uiPrefs();
+        if (prefs.getBoolean("seeded_reference_rules_v1", false) && !prefs.getBoolean("purged_mock_rules_v2", false)) {
+            java.util.Set<String> legacyMockValues = new java.util.HashSet<>(java.util.Arrays.asList(
+                    "adult-dns-filter.local",
+                    "nsfw / xxx / +18",
+                    "com.zhiliaoapp.musically",
+                    "com.instagram.android",
+                    "reddit.com",
+                    "wikipedia.org",
+                    "com.android.settings"));
+            for (Rule r : ruleStore.list()) {
+                if (legacyMockValues.contains(r.value())) {
+                    ruleStore.remove(r.id());
+                }
+            }
+            prefs.edit().putBoolean("purged_mock_rules_v2", true).apply();
+        }
+        if (!prefs.getBoolean("seeded_real_policy_v1", false)) {
+            if (ruleStore.list().isEmpty()) {
+                try {
+                    for (Rule policyRule : BundledDomainPolicy.load(this)) {
+                        ruleStore.save(policyRule);
+                    }
+                } catch (IOException | IllegalStateException ignored) {
+                    // Bundled policy integrity is verified separately by DnsVpnService.
+                }
+            }
+            prefs.edit().putBoolean("seeded_real_policy_v1", true).apply();
+        }
     }
 
     @Override
@@ -364,6 +403,7 @@ public final class MainActivity extends Activity {
         homeDestination.addView(session, marginTop(12));
 
         // --- TAB 2: BARRERAS (Matches Screenshot 5) ---
+        loadPersistedUiState();
         LinearLayout protectionProfile = card();
         protectionProfile.setPadding(dp(16), dp(15), dp(16), dp(15));
         protectionProfile.setBackground(outline(SOFT_BLUE_CARD, SOFT_BLUE_BORDER, 22));
@@ -382,7 +422,7 @@ public final class MainActivity extends Activity {
         Switch masterSwitch = new Switch(this);
         masterSwitch.setChecked(masterBarrierEnabled);
         masterSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            masterBarrierEnabled = isChecked;
+            setAllRulesEnabled(isChecked);
             render();
         });
         protectionTop.addView(masterSwitch);
@@ -395,6 +435,7 @@ public final class MainActivity extends Activity {
                 "Modo Flexible", !strictProtectionMode ? PRIMARY : SURFACE, !strictProtectionMode ? Color.WHITE : TEXT);
         flexibleBtn.setOnClickListener(view -> {
             strictProtectionMode = false;
+            uiPrefs().edit().putBoolean("strict_protection_mode", false).apply();
             render();
         });
         Button strictBtn = compactButton(
@@ -405,6 +446,7 @@ public final class MainActivity extends Activity {
         strictBtn.setPadding(dp(14), dp(2), dp(14), dp(2));
         strictBtn.setOnClickListener(view -> {
             strictProtectionMode = true;
+            uiPrefs().edit().putBoolean("strict_protection_mode", true).apply();
             render();
         });
         modeSegment.addView(flexibleBtn, weightWithMargin(1, 0, 0, dp(4), 0));
@@ -434,14 +476,14 @@ public final class MainActivity extends Activity {
                 layerToggleCard(
                         "globe",
                         "Cobertura en todos los navegadores",
-                        "Impide saltar reglas mediante pestañas de incógnito.",
-                        browserLayerEnabled,
-                        () -> {
-                            browserLayerEnabled = !browserLayerEnabled;
-                            render();
-                        }),
+                        accessEnabled
+                                ? "Servicio de Accesibilidad activo sobre paquetes y navegadores."
+                                : "Activa Accesibilidad para interceptar paquetes y navegadores.",
+                        accessEnabled,
+                        () -> openAccessibilitySettings()),
                 marginTop(10));
 
+        boolean realSocialEnabled = hasActiveAppBlockRules();
         LinearLayout socialLayerCard = column();
         socialLayerCard.setPadding(dp(12), dp(12), dp(12), dp(12));
         socialLayerCard.setBackground(outline(BACKGROUND, OUTLINE, 16));
@@ -455,12 +497,18 @@ public final class MainActivity extends Activity {
         LinearLayout socialWords = column();
         socialWords.setPadding(dp(10), 0, dp(8), 0);
         socialWords.addView(text("Cortafuegos de redes y videos cortos", 14, TEXT, Typeface.BOLD));
-        socialWords.addView(text("Detiene el scroll infinito en Reels, Shorts y TikTok.", 12, MUTED, Typeface.NORMAL));
+        socialWords.addView(text(
+                realSocialEnabled
+                        ? "Reglas de paquetes activas en este dispositivo."
+                        : "Añade o activa paquetes en Reglas para detener el scroll infinito.",
+                12,
+                MUTED,
+                Typeface.NORMAL));
         socialTop.addView(socialWords, weight());
         Switch socialSwitch = new Switch(this);
-        socialSwitch.setChecked(socialLayerEnabled);
+        socialSwitch.setChecked(realSocialEnabled);
         socialSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            socialLayerEnabled = isChecked;
+            toggleAppBlockRules(isChecked);
             render();
         });
         socialTop.addView(socialSwitch);
@@ -475,6 +523,7 @@ public final class MainActivity extends Activity {
                 "reels".equals(socialScopeMode) ? Color.WHITE : MUTED);
         reelsOnlyBtn.setOnClickListener(view -> {
             socialScopeMode = "reels";
+            uiPrefs().edit().putString("social_scope_mode", "reels").apply();
             render();
         });
         Button allSocialBtn = compactButton(
@@ -483,6 +532,7 @@ public final class MainActivity extends Activity {
                 "todas".equals(socialScopeMode) ? Color.WHITE : MUTED);
         allSocialBtn.setOnClickListener(view -> {
             socialScopeMode = "todas";
+            uiPrefs().edit().putString("social_scope_mode", "todas").apply();
             render();
         });
         socialSegment.addView(reelsOnlyBtn, weightWithMargin(1, 0, 0, dp(4), 0));
@@ -527,23 +577,41 @@ public final class MainActivity extends Activity {
         budgets.addView(contactRow);
         budgets.addView(drawerDivider(), size(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
 
+        boolean activeSessionNow = sessionStore.current(System.currentTimeMillis()) != null;
+        boolean shieldActive = accessEnabled && activeSessionNow;
         LinearLayout shieldSettingsRow = row(Gravity.CENTER_VERTICAL);
         shieldSettingsRow.setPadding(dp(16), dp(13), dp(16), dp(13));
         LinearLayout shieldWords = column();
         shieldWords.setPadding(0, 0, dp(8), 0);
         shieldWords.addView(text("Blindaje de ajustes de Android", 14, TEXT, Typeface.BOLD));
-        shieldWords.addView(text("Evita forzar detención durante una sesión activa", 12, MUTED, Typeface.NORMAL));
+        shieldWords.addView(text(
+                shieldActive
+                        ? "Sesión y Accesibilidad activas en este momento"
+                        : "Evita forzar detención durante una sesión activa",
+                12,
+                MUTED,
+                Typeface.NORMAL));
         shieldSettingsRow.addView(shieldWords, weight());
-        shieldSettingsRow.addView(tag("PROTEGIDO", PRIMARY_DEEP, SOFT_BLUE_CARD));
+        shieldSettingsRow.addView(tag(
+                shieldActive ? "PROTEGIDO" : (accessEnabled ? "LISTO" : "INACTIVO"),
+                shieldActive || accessEnabled ? PRIMARY_DEEP : MUTED,
+                shieldActive || accessEnabled ? SOFT_BLUE_CARD : SURFACE_RAISED));
         budgets.addView(shieldSettingsRow);
         budgets.addView(drawerDivider(), size(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
 
+        List<DailyBudget> activeBudgetsList = budgetStore.list();
         LinearLayout dailyLimitRow = row(Gravity.CENTER_VERTICAL);
         dailyLimitRow.setPadding(dp(16), dp(13), dp(16), dp(13));
         LinearLayout dailyLimitWords = column();
         dailyLimitWords.setPadding(0, 0, dp(8), 0);
         dailyLimitWords.addView(text("Límite diario de uso", 14, TEXT, Typeface.BOLD));
-        dailyLimitWords.addView(text("Tope para paquetes con restricción", 12, MUTED, Typeface.NORMAL));
+        dailyLimitWords.addView(text(
+                activeBudgetsList.isEmpty()
+                        ? "Tope para paquetes con restricción"
+                        : activeBudgetsList.size() + " paquete(s) con límite diario local",
+                12,
+                MUTED,
+                Typeface.NORMAL));
         dailyLimitRow.addView(dailyLimitWords, weight());
         LinearLayout limitPills = row(Gravity.CENTER_VERTICAL);
         int[] limitChoices = {15, 30, 45, 60};
@@ -558,7 +626,9 @@ public final class MainActivity extends Activity {
             pill.setFocusable(true);
             pill.setOnClickListener(view -> {
                 selectedDailyLimitMinutes = mins;
+                uiPrefs().edit().putInt("selected_daily_limit_minutes", mins).apply();
                 render();
+                showBudgetAppPicker();
             });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -585,7 +655,7 @@ public final class MainActivity extends Activity {
         permWords.addView(text("Permiso", 13, TEXT, Typeface.BOLD));
         permWords.addView(text("BIND_ACCESSIBILITY_SERVICE", 13, TEXT, Typeface.BOLD));
         permRow.addView(permWords, weight());
-        TextView viewState = text("Ver\nestado", 12, PRIMARY_DEEP, Typeface.BOLD);
+        TextView viewState = text(accessEnabled ? "Activo\nVer" : "Inactivo\nRevisar", 12, PRIMARY_DEEP, Typeface.BOLD);
         viewState.setGravity(Gravity.CENTER);
         viewState.setClickable(true);
         viewState.setFocusable(true);
@@ -646,6 +716,8 @@ public final class MainActivity extends Activity {
 
         // --- TAB 4: REINICIO (Matches Screenshot 2) ---
         HabitStreak streak = habitStreakStore.read();
+        int realRecoveryCount =
+                getSharedPreferences("proyect_x_recovery", Context.MODE_PRIVATE).getInt("count", 0);
         LinearLayout recoveryTabs = row(Gravity.CENTER_VERTICAL);
         recoveryTabs.setPadding(dp(4), dp(4), dp(4), dp(4));
         recoveryTabs.setBackground(outline(SURFACE, OUTLINE, 16));
@@ -658,7 +730,7 @@ public final class MainActivity extends Activity {
             render();
         });
         Button tabBitacora = compactButton(
-                "Bitácora (2)",
+                "Bitácora (" + realRecoveryCount + ")",
                 "bitacora".equals(recoverySubView) ? HERO : SURFACE,
                 "bitacora".equals(recoverySubView) ? Color.WHITE : MUTED);
         tabBitacora.setOnClickListener(view -> {
@@ -710,10 +782,13 @@ public final class MainActivity extends Activity {
             guidesCard.addView(milestoneRow("03", "Higiene de entorno nocturno · 4 min", true), marginTop(6));
             recoveryDestination.addView(guidesCard, marginTop(12));
         } else {
-            int displayDays = streak.currentDays() > 0 ? streak.currentDays() : 3;
-            int displayHours = 6;
-            int displayMinutes = 38;
-            int displayBestDays = Math.max(7, streak.bestDays());
+            long streakStartedAt = uiPrefs().getLong("streak_started_at", System.currentTimeMillis());
+            long elapsedMillis = Math.max(0L, System.currentTimeMillis() - streakStartedAt);
+            int elapsedDays = (int) (elapsedMillis / 86_400_000L);
+            int displayDays = Math.max(streak.currentDays(), elapsedDays);
+            int displayHours = (int) ((elapsedMillis % 86_400_000L) / 3_600_000L);
+            int displayMinutes = (int) ((elapsedMillis % 3_600_000L) / 60_000L);
+            int displayBestDays = Math.max(streak.bestDays(), displayDays);
 
             LinearLayout constancy = card();
             constancy.setPadding(dp(16), dp(15), dp(16), dp(15));
@@ -759,19 +834,7 @@ public final class MainActivity extends Activity {
             constancy.addView(constancyActions, marginTop(10));
             recoveryDestination.addView(constancy, marginTop(12));
 
-            String[][] motivationItems = {
-                {
-                    "Entorno Nocturno · Protección del Descanso",
-                    "“La soledad y el aislamiento nocturno distorsionan tus decisiones. No negocies con tus hábitos después de las 22:30; deja que tus barreras decidan por ti.”",
-                    "Mantén el Modo Blindado activo y coloca el dispositivo lejos de la cama."
-                },
-                {
-                    "Regla de los 90 Segundos · Pausa de Atención",
-                    "“Un impulso alcanza su pico rápidamente y cede cuando no lo alimentas. Respira, cambia de postura y protege tu siguiente hora.”",
-                    "Inicia un bloque de 25 minutos en Estudio o Trabajo."
-                }
-            };
-            String[] activeMotivation = motivationItems[motivationIndex % motivationItems.length];
+            String[] activeMotivation = resolveActiveMotivation();
             LinearLayout motivationCard = card();
             motivationCard.setPadding(dp(16), dp(15), dp(16), dp(15));
             LinearLayout motivationHeader = row(Gravity.CENTER_VERTICAL);
@@ -802,6 +865,11 @@ public final class MainActivity extends Activity {
             TextView tipBanner = text(activeMotivation[2], 12, NAVY_ACCENT, Typeface.BOLD);
             tipBanner.setPadding(dp(12), dp(10), dp(12), dp(10));
             tipBanner.setBackground(round(SURFACE_RAISED, 12));
+            if (faithModeStore.isEnabled()) {
+                tipBanner.setClickable(true);
+                tipBanner.setFocusable(true);
+                tipBanner.setOnClickListener(view -> openBibleReader());
+            }
             motivationCard.addView(tipBanner, marginTop(8));
             recoveryDestination.addView(motivationCard, marginTop(12));
 
@@ -816,6 +884,7 @@ public final class MainActivity extends Activity {
                 else keyCount++;
             }
             int configuredRulesCount = domCount + appCount + keyCount;
+            int completedSessionsCount = uiPrefs().getInt("completed_sessions_count", streak.currentDays());
             LinearLayout balanceCard = card();
             balanceCard.setPadding(dp(16), dp(15), dp(16), dp(15));
             LinearLayout balanceHeader = row(Gravity.CENTER_VERTICAL);
@@ -827,7 +896,7 @@ public final class MainActivity extends Activity {
             sessionsBox.setPadding(dp(12), dp(12), dp(12), dp(12));
             sessionsBox.setBackground(outline(SURFACE_RAISED, SOFT_BLUE_BORDER, 16));
             sessionsBox.addView(text("SESIONES COMPLETADAS", 10, NAVY_ACCENT, Typeface.BOLD));
-            sessionsBox.addView(text(String.valueOf(Math.max(6, streak.currentDays())), 22, TEXT, Typeface.BOLD));
+            sessionsBox.addView(text(String.valueOf(completedSessionsCount), 22, TEXT, Typeface.BOLD));
             sessionsBox.addView(text("bloques de enfoque", 11, MUTED, Typeface.NORMAL));
             LinearLayout rulesBox = column();
             rulesBox.setPadding(dp(12), dp(12), dp(12), dp(12));
@@ -841,14 +910,17 @@ public final class MainActivity extends Activity {
             balanceCard.addView(balanceGrid, marginTop(10));
             recoveryDestination.addView(balanceCard, marginTop(12));
 
+            boolean reached24h = elapsedMillis >= 86_400_000L || displayDays >= 1;
             LinearLayout milestones = card();
             milestones.setPadding(dp(16), dp(15), dp(16), dp(15));
             LinearLayout milestonesHeader = row(Gravity.CENTER_VERTICAL);
             milestonesHeader.addView(text("Hitos de estabilidad", 16, TEXT, Typeface.BOLD), weight());
             milestonesHeader.addView(text("PROGRESO", 11, MUTED, Typeface.BOLD));
             milestones.addView(milestonesHeader);
-            milestones.addView(milestoneRow("01", "24 Horas — Interrupción del impulso inicial", true), marginTop(8));
-            milestones.addView(milestoneRow("02", "3 Días — Estabilización de ventana nocturna", true), marginTop(6));
+            milestones.addView(
+                    milestoneRow("01", "24 Horas — Interrupción del impulso inicial", reached24h), marginTop(8));
+            milestones.addView(
+                    milestoneRow("02", "3 Días — Estabilización de ventana nocturna", displayDays >= 3), marginTop(6));
             milestones.addView(
                     milestoneRow("03", "7 Días — Primera semana sin recaídas", displayDays >= 7), marginTop(6));
             milestones.addView(
@@ -863,14 +935,18 @@ public final class MainActivity extends Activity {
         LinearLayout rulesOverviewWords = column();
         rulesOverviewWords.setPadding(0, 0, dp(8), 0);
         rulesOverviewWords.addView(text("MAPA DE REGLAS EN DISPOSITIVO", 10, PRIMARY_DEEP, Typeface.BOLD));
-        rulesOverviewWords.addView(text("Motor de reglas activo", 18, TEXT, Typeface.BOLD));
+        rulesOverviewWords.addView(text(
+                ruleEngineMasterEnabled ? "Motor de reglas activo" : "Motor de reglas en pausa",
+                18,
+                TEXT,
+                Typeface.BOLD));
         rulesOverviewWords.addView(
                 text("Dominios DNS, paquetes Android y palabras clave locales.", 13, MUTED, Typeface.NORMAL));
         rulesOverviewTop.addView(rulesOverviewWords, weight());
         Switch engineSwitch = new Switch(this);
         engineSwitch.setChecked(ruleEngineMasterEnabled);
         engineSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            ruleEngineMasterEnabled = isChecked;
+            setAllRulesEnabled(isChecked);
             render();
         });
         rulesOverviewTop.addView(engineSwitch);
@@ -1089,6 +1165,8 @@ public final class MainActivity extends Activity {
             } catch (IllegalStateException ignored) {
                 // The voluntary session remains valid even if optional motivation state cannot persist.
             }
+            int completed = uiPrefs().getInt("completed_sessions_count", 0) + 1;
+            uiPrefs().edit().putInt("completed_sessions_count", completed).apply();
             refreshSession();
             Toast.makeText(this, "Sesión local iniciada.", Toast.LENGTH_SHORT).show();
         } catch (IllegalArgumentException | IllegalStateException exception) {
@@ -1110,6 +1188,10 @@ public final class MainActivity extends Activity {
         try {
             recoveryStore.record(reason);
             sessionStore.clear();
+            uiPrefs()
+                    .edit()
+                    .putLong("streak_started_at", System.currentTimeMillis())
+                    .apply();
             activeDestination = "inicio";
             render();
             Toast.makeText(this, "Plan reiniciado sin desactivar tus barreras.", Toast.LENGTH_LONG)
@@ -1117,6 +1199,83 @@ public final class MainActivity extends Activity {
         } catch (IllegalArgumentException | IllegalStateException exception) {
             Toast.makeText(this, exception.getMessage(), Toast.LENGTH_LONG).show();
         }
+    }
+
+    private void setAllRulesEnabled(boolean enabledState) {
+        for (Rule r : ruleStore.list()) {
+            if (r.enabled() != enabledState) {
+                ruleStore.setEnabled(r.id(), enabledState);
+            }
+        }
+        ruleEngineMasterEnabled = enabledState;
+        masterBarrierEnabled = enabledState;
+    }
+
+    private boolean hasActiveAppBlockRules() {
+        for (Rule r : ruleStore.list()) {
+            if (r.type() == Rule.Type.APP && r.action() == Rule.Action.BLOCK && r.enabled()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void toggleAppBlockRules(boolean enable) {
+        boolean foundAnyAppRule = false;
+        for (Rule r : ruleStore.list()) {
+            if (r.type() == Rule.Type.APP && r.action() == Rule.Action.BLOCK) {
+                foundAnyAppRule = true;
+                if (r.enabled() != enable) {
+                    ruleStore.setEnabled(r.id(), enable);
+                }
+            }
+        }
+        if (enable && !foundAnyAppRule) {
+            switchDestination("reglas");
+            showAddRuleDialog();
+            if (typeSelector != null) typeSelector.setSelection(2);
+        }
+    }
+
+    private String[] resolveActiveMotivation() {
+        if (faithModeStore.isEnabled()) {
+            try {
+                BibleRepository repo = BibleRepository.load(this);
+                BibleRepository.Book book = repo.findBook("Proverbios");
+                if (book == null && !repo.books().isEmpty()) {
+                    book = repo.books().get(0);
+                }
+                if (book != null && !book.chapters().isEmpty()) {
+                    BibleRepository.Chapter chapter =
+                            book.chapter(Math.min(4, book.chapters().size()));
+                    if (chapter != null && !chapter.verses().isEmpty()) {
+                        BibleRepository.Verse verse = chapter.verses()
+                                .get(Math.abs(motivationIndex)
+                                        % chapter.verses().size());
+                        return new String[] {
+                            book.name() + " " + chapter.number() + ":" + verse.number() + " · Reina-Valera",
+                            "“" + verse.text() + "”",
+                            "Abrir lector bíblico local (RVR) ›"
+                        };
+                    }
+                }
+            } catch (IOException | JSONException | RuntimeException ignored) {
+                // Fall back to standard local guidance if asset cannot be read.
+            }
+        }
+        String[][] motivationItems = {
+            {
+                "Entorno Nocturno · Protección del Descanso",
+                "“La soledad y el aislamiento nocturno distorsionan tus decisiones. No negocies con tus hábitos después de las 22:30; deja que tus barreras decidan por ti.”",
+                "Mantén el Modo Blindado activo y coloca el dispositivo lejos de la cama."
+            },
+            {
+                "Regla de los 90 Segundos · Pausa de Atención",
+                "“Un impulso alcanza su pico rápidamente y cede cuando no lo alimentas. Respira, cambia de postura y protege tu siguiente hora.”",
+                "Inicia un bloque de 25 minutos en Estudio o Trabajo."
+            }
+        };
+        return motivationItems[Math.abs(motivationIndex) % motivationItems.length];
     }
 
     private void addRule() {
@@ -1238,46 +1397,59 @@ public final class MainActivity extends Activity {
     }
 
     private String ruleDisplayTarget(Rule rule) {
-        if ("reddit.com".equals(rule.value()) && rule.action() == Rule.Action.BLOCK) {
-            return "reddit.com/r/nsfw";
-        }
         return rule.value();
     }
 
     private String ruleDescription(Rule rule) {
-        return switch (rule.value()) {
-            case "adult-dns-filter.local" -> "Filtro DNS Categoría Contenido para ...";
-            case "nsfw / xxx / +18" -> "Palabras clave restringidas en URLs y ...";
-            case "com.zhiliaoapp.musically" -> "TikTok — Paquete Android (Scroll infin...";
-            case "com.instagram.android" -> "Instagram — Intercepción de Reels y ...";
-            case "reddit.com" -> "Foros y comunidades +18 en navega...";
-            case "wikipedia.org" -> "Excepción educativa permitida en DNS";
-            case "com.android.settings" -> "Ajustes del sistema permitidos";
-            default -> rule.schedule().toDisplayText();
-        };
+        String scheduleLabel = rule.schedule().toDisplayText();
+        if (rule.type() == Rule.Type.APP) {
+            try {
+                android.content.pm.ApplicationInfo appInfo = getPackageManager().getApplicationInfo(rule.value(), 0);
+                CharSequence label = getPackageManager().getApplicationLabel(appInfo);
+                if (label != null && !label.toString().isBlank()) {
+                    return label + " — Paquete instalado · " + scheduleLabel;
+                }
+            } catch (android.content.pm.PackageManager.NameNotFoundException ignored) {
+                // Package not currently installed on this device; show honest package rule description.
+            }
+            return (rule.action() == Rule.Action.ALLOW
+                            ? "Excepción de paquete Android · "
+                            : "Restricción de paquete Android · ")
+                    + scheduleLabel;
+        }
+        if (rule.type() == Rule.Type.DOMAIN) {
+            boolean isBundledPolicy = "adult-test.invalid".equals(rule.value())
+                    || "media-test.invalid".equals(rule.value())
+                    || "safe.adult-test.invalid".equals(rule.value());
+            if (isBundledPolicy) {
+                return "Política DNS verificada (" + BundledDomainPolicy.VERSION + ") · " + scheduleLabel;
+            }
+            return (rule.action() == Rule.Action.ALLOW ? "Excepción DNS local · " : "Dominio bloqueado en DNS local · ")
+                    + scheduleLabel;
+        }
+        return (rule.action() == Rule.Action.ALLOW
+                        ? "Excepción de palabra clave · "
+                        : "Palabra clave local en motor · ")
+                + scheduleLabel;
     }
 
     private String ruleAgeLabel(Rule rule) {
-        return switch (rule.value()) {
-            case "adult-dns-filter.local" -> "Preconfigurado";
-            case "nsfw / xxx / +18" -> "Hace 2 d";
-            case "com.zhiliaoapp.musically" -> "Hace 3 d";
-            case "com.instagram.android" -> "Ayer";
-            case "reddit.com" -> "Hace 4 d";
-            default -> "Local";
-        };
+        return rule.schedule().isAlways() ? "Siempre" : rule.schedule().toDisplayText();
     }
 
     private String ruleInterceptionsLabel(Rule rule) {
+        if (!rule.enabled()) return "Pausada";
         if (rule.action() == Rule.Action.ALLOW) return "Excepción activa";
-        return switch (rule.value()) {
-            case "adult-dns-filter.local" -> "27\nintercepciones";
-            case "nsfw / xxx / +18" -> "19\nintercepciones";
-            case "com.zhiliaoapp.musically" -> "14\nintercepciones";
-            case "com.instagram.android" -> "9 intercepciones";
-            case "reddit.com" -> "6\nintercepciones";
-            default -> rule.enabled() ? "Activa en local" : "Pausada";
-        };
+        if (rule.type() == Rule.Type.APP) {
+            return isAccessibilityEnabled() ? "Activa en Accesibilidad" : "Requiere Accesibilidad";
+        }
+        if (rule.type() == Rule.Type.DOMAIN) {
+            DnsVpnService.Status dns = DnsVpnService.readStatus(this);
+            boolean dnsUp =
+                    DnsVpnService.STATE_ACTIVE.equals(dns.state()) || DnsVpnService.STATE_STARTING.equals(dns.state());
+            return dnsUp ? "Activa en DNS VPN" : "Lista en DNS local";
+        }
+        return "Activa en motor local";
     }
 
     private void showAddRuleDialog() {
@@ -1336,7 +1508,7 @@ public final class MainActivity extends Activity {
 
     private void showEditLocalContactDialog() {
         EditText contactInput = new EditText(this);
-        contactInput.setText(localContactName);
+        contactInput.setText("Sin configurar".equals(localContactName) ? "" : localContactName);
         contactInput.setHint("Nombre del contacto local");
         contactInput.setHintTextColor(MUTED);
         contactInput.setTextColor(TEXT);
@@ -1350,10 +1522,12 @@ public final class MainActivity extends Activity {
                 .setNegativeButton("Cancelar", null)
                 .setPositiveButton("GUARDAR", (dialog, which) -> {
                     String updated = contactInput.getText().toString().trim();
-                    if (!updated.isEmpty()) {
-                        localContactName = updated;
-                        render();
-                    }
+                    localContactName = updated.isEmpty() ? "Sin configurar" : updated;
+                    uiPrefs()
+                            .edit()
+                            .putString("local_contact_name", localContactName)
+                            .apply();
+                    render();
                 })
                 .show();
     }
@@ -1456,7 +1630,7 @@ public final class MainActivity extends Activity {
         minutes.setPadding(dp(18), dp(8), dp(18), dp(8));
         minutes.setBackground(outline(SURFACE_RAISED, ACCENT, 12));
         DailyBudget existing = budgetStore.find(app.packageName());
-        if (existing != null) minutes.setText(String.valueOf(existing.limitMinutes()));
+        minutes.setText(String.valueOf(existing != null ? existing.limitMinutes() : selectedDailyLimitMinutes));
         new AlertDialog.Builder(this)
                 .setTitle("Presupuesto para " + app.label())
                 .setMessage(
