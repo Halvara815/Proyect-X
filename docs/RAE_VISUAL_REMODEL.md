@@ -40,16 +40,29 @@ de la lógica y almacenes locales de Proyect X (`RuleStore`, `BudgetStore`, `Foc
    segmentado (`Modo Flexible` | `Modo Blindado` con icono de candado vectorial), tarjeta
    `Capas de intercepción local` (`SIN NUBE`) con iconos vectoriales limpios (`Filtro DNS` conectado
    al ciclo de vida real de `DnsVpnService`, `Cobertura en todos los navegadores` y `Cortafuegos de
-   redes y videos cortos` con selector `Solo Reels y Shorts` | `Apps sociales completas`), además de
-   los controles locales de presupuesto diario y diagnóstico DNS (`REINTENTAR FILTRO DNS`).
-4. **Reinicio:** Selector superior de tres segmentos (`Constancia` | `Bitácora` | `Guías y Foro`),
+   redes y videos cortos` con selector `Solo Reels y Shorts` | `Apps sociales completas`), tarjeta
+   `Candados contra impulsos y límites diarios` (`Contacto de verificación local`, `Blindaje de
+   ajustes de Android · PROTEGIDO`, `Límite diario de uso` `15m / 30m / 45m / 60m`, y permiso
+   `BIND_ACCESSIBILITY_SERVICE`), botón `Ir al editor de reglas (Dominios, Apps y Palabras)` y
+   controles de diagnóstico DNS (`REINTENTAR FILTRO DNS`).
+4. **Reglas:** Tarjeta `MAPA DE REGLAS EN DISPOSITIVO` (`Motor de reglas activo`, interruptor
+   general, selector segmentado `Restringir` | `Excepciones` y filtros de categoría `Todas` |
+   `Dominios` | `Apps` | `Palabras`), barra de filtrado en vivo con chip `↑↓ Recientes`, tarjetas
+   de reglas individuales con iconos vectoriales por tipo (`globe`, `key`, `smartphone`), interruptor
+   de estado y papelera de borrado, y botón inferior `+ Añadir dominio, paquete o palabra` que abre
+   el compositor completo con selector de horario.
+5. **Reinicio:** Selector superior de tres segmentos (`Constancia` | `Bitácora` | `Guías y Foro`),
    tarjeta `TIEMPO CONTINUO SIN INTERRUPCIONES` con tres contadores digitales blancos (`DÍAS`,
    `HORAS` en azul `#2563EB`, `MINUTOS`), mejor marca local y botones `Reiniciar contador` y
    `Abrir Bitácora`, tarjeta `MOTIVACIÓN NORMAL PARA TU ESTADO` / `VERSÍCULO PARA TU ESTADO`,
-   `Balance de sesiones y barreras` y `Hitos de estabilidad`.
-5. **Panel lateral (`Centro local`):** Cabecera oscura `#081026` de borde a borde con insignia `PX`,
-   tarjeta interna `MENSAJES DE FIRMEZA` (`Configurar modo` y `Accesibilidad`), cinco accesos con
-   iconografía vectorial limpia y divisores de `1dp`, y pie `ProyectX · En desarrollo`.
+   `Balance de sesiones y barreras` con desglose por tipo (`dom · apps · pal`) e `Hitos de
+   estabilidad`.
+6. **Panel lateral (`Centro local`) y `Configuraciones locales`:** Cabecera oscura `#081026` de
+   borde a borde con insignia `PX`, tarjeta interna `MENSAJES DE FIRMEZA` (`Configurar modo` y
+   `Accesibilidad`), cinco accesos con iconografía vectorial limpia y vista completa de
+   `Configuraciones locales` (`MÓDULO OPCIONAL DE FIRMEZA · Biblia Reina-Valera 1960` con indicador
+   de fuente activa, `Almacenamiento de reglas`, `Idioma de la interfaz`, `Respaldo de mapa de
+   reglas` con botón `Exportar` y `Garantía de privacidad local`).
 
 La validación posterior se realizó con `spotlessCheck`, `:app:lintDebug`, `:app:assembleDebug`,
 `:app:assembleRelease`, las 23 pruebas smoke JVM y capturas en vivo sobre `emulator-5554`.

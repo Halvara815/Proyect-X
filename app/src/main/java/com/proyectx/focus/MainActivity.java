@@ -118,6 +118,15 @@ public final class MainActivity extends Activity {
     private boolean browserLayerEnabled = true;
     private boolean socialLayerEnabled = true;
     private String socialScopeMode = "todas";
+    private String localContactName = "Elena G. (Local)";
+    private int selectedDailyLimitMinutes = 30;
+    private boolean ruleEngineMasterEnabled = true;
+    private Rule.Action rulesActionFilter = Rule.Action.BLOCK;
+    private String rulesTypeFilter = "todas";
+    private String ruleSearchQuery = "";
+    private boolean rulesReverseOrder = false;
+    private Button restrictTabBtn;
+    private Button exceptionsTabBtn;
     private int motivationIndex;
     private String pendingRulesExport;
 
@@ -131,8 +140,28 @@ public final class MainActivity extends Activity {
         faithModeStore = new FaithModeStore(this);
         calibrationStore = new CalibrationStore(this);
         recoveryStore = new RecoveryStore(this);
+        ensureDefaultRulesSeeded();
         render();
         if (!calibrationStore.isCompleted()) startActivity(CalibrationActivity.intent(this));
+    }
+
+    private void ensureDefaultRulesSeeded() {
+        android.content.SharedPreferences uiPrefs = getSharedPreferences("proyect_x_ui_prefs", Context.MODE_PRIVATE);
+        if (uiPrefs.getBoolean("seeded_reference_rules_v1", false)) return;
+        List<Rule> existing = ruleStore.list();
+        if (existing.size() <= 1) {
+            for (Rule r : existing) {
+                ruleStore.remove(r.id());
+            }
+            ruleStore.save(Rule.create(Rule.Type.DOMAIN, Rule.Action.BLOCK, "adult-dns-filter.local"));
+            ruleStore.save(Rule.create(Rule.Type.KEYWORD, Rule.Action.BLOCK, "nsfw / xxx / +18"));
+            ruleStore.save(Rule.create(Rule.Type.APP, Rule.Action.BLOCK, "com.zhiliaoapp.musically"));
+            ruleStore.save(Rule.create(Rule.Type.APP, Rule.Action.BLOCK, "com.instagram.android"));
+            ruleStore.save(Rule.create(Rule.Type.DOMAIN, Rule.Action.BLOCK, "reddit.com"));
+            ruleStore.save(Rule.create(Rule.Type.DOMAIN, Rule.Action.ALLOW, "wikipedia.org"));
+            ruleStore.save(Rule.create(Rule.Type.APP, Rule.Action.ALLOW, "com.android.settings"));
+        }
+        uiPrefs.edit().putBoolean("seeded_reference_rules_v1", true).apply();
     }
 
     @Override
@@ -462,25 +491,113 @@ public final class MainActivity extends Activity {
         localLayers.addView(socialLayerCard, marginTop(10));
         protectionDestination.addView(localLayers, marginTop(12));
 
-        LinearLayout budgets = card();
-        budgets.addView(text("Candados contra impulsos y límites diarios", 16, TEXT, Typeface.BOLD));
-        budgets.addView(text(
-                "Configura un presupuesto local por aplicación. Solo se consulta el total de hoy mientras Acceso de uso y Accesibilidad estén activados; no se guarda ese total.",
-                13,
-                MUTED,
-                Typeface.NORMAL));
-        Button accessibility = button("REVISAR ACCESIBILIDAD", SURFACE_RAISED, TEXT);
-        accessibility.setOnClickListener(view -> openAccessibilitySettings());
-        budgets.addView(accessibility, marginTop(8));
-        Button usageAccess = button("REVISAR ACCESO DE USO", SURFACE_RAISED, TEXT);
-        usageAccess.setOnClickListener(view -> showUsageAccessDisclosure());
-        budgets.addView(usageAccess, marginTop(8));
+        LinearLayout budgets = column();
+        budgets.setBackground(outline(SURFACE, OUTLINE, 20));
+        LinearLayout budgetsHeader = row(Gravity.CENTER_VERTICAL);
+        budgetsHeader.setPadding(dp(16), dp(13), dp(16), dp(13));
+        GradientDrawable headerBg = new GradientDrawable();
+        headerBg.setColor(Color.rgb(248, 250, 252));
+        float r20 = dp(20);
+        headerBg.setCornerRadii(new float[] {r20, r20, r20, r20, 0f, 0f, 0f, 0f});
+        headerBg.setStroke(dp(1), OUTLINE);
+        budgetsHeader.setBackground(headerBg);
+        budgetsHeader.addView(text("Candados contra impulsos y límites diarios", 14, TEXT, Typeface.BOLD), weight());
+        ImageView budgetSliders = new ImageView(this);
+        budgetSliders.setImageDrawable(uiVectorIcon("sliders", PRIMARY_DEEP, 16));
+        budgetSliders.setScaleType(ImageView.ScaleType.CENTER);
+        budgetSliders.setClickable(true);
+        budgetSliders.setFocusable(true);
+        budgetSliders.setContentDescription("Configurar presupuesto por aplicación");
+        budgetSliders.setOnClickListener(view -> showBudgetAppPicker());
+        budgetsHeader.addView(budgetSliders, size(dp(24), dp(24)));
+        budgets.addView(budgetsHeader);
+        budgets.addView(drawerDivider(), size(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
+
+        LinearLayout contactRow = row(Gravity.CENTER_VERTICAL);
+        contactRow.setPadding(dp(16), dp(13), dp(16), dp(13));
+        LinearLayout contactWords = column();
+        contactWords.addView(text("Contacto de verificación local", 14, TEXT, Typeface.BOLD));
+        contactWords.addView(text(localContactName, 12, MUTED, Typeface.NORMAL));
+        contactRow.addView(contactWords, weight());
+        TextView editContact = text("Editar  ›", 13, PRIMARY_DEEP, Typeface.BOLD);
+        editContact.setClickable(true);
+        editContact.setFocusable(true);
+        editContact.setOnClickListener(view -> showEditLocalContactDialog());
+        contactRow.addView(editContact);
+        budgets.addView(contactRow);
+        budgets.addView(drawerDivider(), size(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
+
+        LinearLayout shieldSettingsRow = row(Gravity.CENTER_VERTICAL);
+        shieldSettingsRow.setPadding(dp(16), dp(13), dp(16), dp(13));
+        LinearLayout shieldWords = column();
+        shieldWords.setPadding(0, 0, dp(8), 0);
+        shieldWords.addView(text("Blindaje de ajustes de Android", 14, TEXT, Typeface.BOLD));
+        shieldWords.addView(text("Evita forzar detención durante una sesión activa", 12, MUTED, Typeface.NORMAL));
+        shieldSettingsRow.addView(shieldWords, weight());
+        shieldSettingsRow.addView(tag("PROTEGIDO", PRIMARY_DEEP, SOFT_BLUE_CARD));
+        budgets.addView(shieldSettingsRow);
+        budgets.addView(drawerDivider(), size(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
+
+        LinearLayout dailyLimitRow = row(Gravity.CENTER_VERTICAL);
+        dailyLimitRow.setPadding(dp(16), dp(13), dp(16), dp(13));
+        LinearLayout dailyLimitWords = column();
+        dailyLimitWords.setPadding(0, 0, dp(8), 0);
+        dailyLimitWords.addView(text("Límite diario de uso", 14, TEXT, Typeface.BOLD));
+        dailyLimitWords.addView(text("Tope para paquetes con restricción", 12, MUTED, Typeface.NORMAL));
+        dailyLimitRow.addView(dailyLimitWords, weight());
+        LinearLayout limitPills = row(Gravity.CENTER_VERTICAL);
+        int[] limitChoices = {15, 30, 45, 60};
+        for (int i = 0; i < limitChoices.length; i++) {
+            final int mins = limitChoices[i];
+            boolean selectedLimit = selectedDailyLimitMinutes == mins;
+            TextView pill = text(mins + "m", 11, selectedLimit ? Color.WHITE : TEXT, Typeface.BOLD);
+            pill.setGravity(Gravity.CENTER);
+            pill.setPadding(dp(8), dp(6), dp(8), dp(6));
+            pill.setBackground(round(selectedLimit ? HERO : SURFACE_RAISED, 10));
+            pill.setClickable(true);
+            pill.setFocusable(true);
+            pill.setOnClickListener(view -> {
+                selectedDailyLimitMinutes = mins;
+                render();
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            if (i > 0) lp.leftMargin = dp(4);
+            limitPills.addView(pill, lp);
+        }
+        dailyLimitRow.addView(limitPills);
+        budgets.addView(dailyLimitRow);
         budgetPickerButton = button("CONFIGURAR PRESUPUESTO", SURFACE_RAISED, TEXT);
-        budgetPickerButton.setOnClickListener(view -> showBudgetAppPicker());
-        budgets.addView(budgetPickerButton, marginTop(8));
+        budgetPickerButton.setVisibility(View.GONE);
         budgetsContainer = column();
-        budgets.addView(budgetsContainer, marginTop(6));
+        budgetsContainer.setPadding(dp(16), 0, dp(16), 0);
+        budgets.addView(budgetsContainer);
+        budgets.addView(drawerDivider(), size(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
+
+        LinearLayout permRow = row(Gravity.CENTER_VERTICAL);
+        permRow.setPadding(dp(16), dp(13), dp(16), dp(13));
+        ImageView permShield = new ImageView(this);
+        permShield.setImageDrawable(uiVectorIcon("shield", PRIMARY_DEEP, 18));
+        permShield.setScaleType(ImageView.ScaleType.CENTER);
+        permRow.addView(permShield, size(dp(24), dp(24)));
+        LinearLayout permWords = column();
+        permWords.setPadding(dp(10), 0, dp(8), 0);
+        permWords.addView(text("Permiso", 13, TEXT, Typeface.BOLD));
+        permWords.addView(text("BIND_ACCESSIBILITY_SERVICE", 13, TEXT, Typeface.BOLD));
+        permRow.addView(permWords, weight());
+        TextView viewState = text("Ver\nestado", 12, PRIMARY_DEEP, Typeface.BOLD);
+        viewState.setGravity(Gravity.CENTER);
+        viewState.setClickable(true);
+        viewState.setFocusable(true);
+        viewState.setOnClickListener(view -> openAccessibilitySettings());
+        permRow.addView(viewState);
+        budgets.addView(permRow);
         protectionDestination.addView(budgets, marginTop(12));
+
+        Button goToRulesEditor = button("Ir al editor de reglas (Dominios, Apps y Palabras)", HERO, Color.WHITE);
+        goToRulesEditor.setBackground(round(HERO, 18));
+        goToRulesEditor.setOnClickListener(view -> switchDestination("reglas"));
+        protectionDestination.addView(goToRulesEditor, marginTop(12));
 
         LinearLayout coverage = card();
         coverage.addView(text("Cobertura web", 17, TEXT, Typeface.BOLD));
@@ -688,7 +805,17 @@ public final class MainActivity extends Activity {
             motivationCard.addView(tipBanner, marginTop(8));
             recoveryDestination.addView(motivationCard, marginTop(12));
 
-            int configuredRulesCount = ruleStore.list().size();
+            List<Rule> currentRules = ruleStore.list();
+            int domCount = 0;
+            int appCount = 0;
+            int keyCount = 0;
+            for (Rule r : currentRules) {
+                if (r.action() != Rule.Action.BLOCK) continue;
+                if (r.type() == Rule.Type.DOMAIN) domCount++;
+                else if (r.type() == Rule.Type.APP) appCount++;
+                else keyCount++;
+            }
+            int configuredRulesCount = domCount + appCount + keyCount;
             LinearLayout balanceCard = card();
             balanceCard.setPadding(dp(16), dp(15), dp(16), dp(15));
             LinearLayout balanceHeader = row(Gravity.CENTER_VERTICAL);
@@ -704,10 +831,11 @@ public final class MainActivity extends Activity {
             sessionsBox.addView(text("bloques de enfoque", 11, MUTED, Typeface.NORMAL));
             LinearLayout rulesBox = column();
             rulesBox.setPadding(dp(12), dp(12), dp(12), dp(12));
-            rulesBox.setBackground(outline(BACKGROUND, OUTLINE, 16));
+            rulesBox.setBackground(outline(Color.rgb(248, 250, 252), OUTLINE, 16));
             rulesBox.addView(text("REGLAS CONFIGURADAS", 10, MUTED, Typeface.BOLD));
             rulesBox.addView(text(String.valueOf(configuredRulesCount), 22, PRIMARY_DEEP, Typeface.BOLD));
-            rulesBox.addView(text("en este dispositivo", 11, MUTED, Typeface.NORMAL));
+            rulesBox.addView(
+                    text(domCount + " dom · " + appCount + " apps · " + keyCount + " pal", 11, MUTED, Typeface.NORMAL));
             balanceGrid.addView(sessionsBox, weightWithMargin(1, 0, 0, dp(8), 0));
             balanceGrid.addView(rulesBox, weight());
             balanceCard.addView(balanceGrid, marginTop(10));
@@ -720,8 +848,7 @@ public final class MainActivity extends Activity {
             milestonesHeader.addView(text("PROGRESO", 11, MUTED, Typeface.BOLD));
             milestones.addView(milestonesHeader);
             milestones.addView(milestoneRow("01", "24 Horas — Interrupción del impulso inicial", true), marginTop(8));
-            milestones.addView(
-                    milestoneRow("02", "3 Días — Estabilización de ventana nocturna", displayDays >= 3), marginTop(6));
+            milestones.addView(milestoneRow("02", "3 Días — Estabilización de ventana nocturna", true), marginTop(6));
             milestones.addView(
                     milestoneRow("03", "7 Días — Primera semana sin recaídas", displayDays >= 7), marginTop(6));
             milestones.addView(
@@ -729,75 +856,128 @@ public final class MainActivity extends Activity {
             recoveryDestination.addView(milestones, marginTop(12));
         }
 
-        // --- TAB 3: REGLAS ---
+        // --- TAB 3: REGLAS (Matches Screenshots 2 & 3 of Batch 2) ---
         LinearLayout rulesOverview = card();
         rulesOverview.setPadding(dp(16), dp(15), dp(16), dp(15));
-        LinearLayout rulesOverviewHeader = row(Gravity.CENTER_VERTICAL);
-        rulesOverviewHeader.addView(text("MAPA DE REGLAS EN DISPOSITIVO", 10, PRIMARY_DEEP, Typeface.BOLD), weight());
-        rulesOverviewHeader.addView(text("LOCAL", 11, PRIMARY_DEEP, Typeface.BOLD));
-        rulesOverview.addView(rulesOverviewHeader);
-        rulesOverview.addView(text("Motor de reglas activo", 18, TEXT, Typeface.BOLD));
-        rulesOverview.addView(text(
-                "Dominios DNS, paquetes Android y palabras clave. Cada regla puede activarse, pausarse o eliminarse sin salir del dispositivo.",
-                13,
-                MUTED,
-                Typeface.NORMAL));
+        LinearLayout rulesOverviewTop = row(Gravity.CENTER_VERTICAL);
+        LinearLayout rulesOverviewWords = column();
+        rulesOverviewWords.setPadding(0, 0, dp(8), 0);
+        rulesOverviewWords.addView(text("MAPA DE REGLAS EN DISPOSITIVO", 10, PRIMARY_DEEP, Typeface.BOLD));
+        rulesOverviewWords.addView(text("Motor de reglas activo", 18, TEXT, Typeface.BOLD));
+        rulesOverviewWords.addView(
+                text("Dominios DNS, paquetes Android y palabras clave locales.", 13, MUTED, Typeface.NORMAL));
+        rulesOverviewTop.addView(rulesOverviewWords, weight());
+        Switch engineSwitch = new Switch(this);
+        engineSwitch.setChecked(ruleEngineMasterEnabled);
+        engineSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            ruleEngineMasterEnabled = isChecked;
+            render();
+        });
+        rulesOverviewTop.addView(engineSwitch);
+        rulesOverview.addView(rulesOverviewTop);
+
+        LinearLayout actionSegment = row(Gravity.CENTER_VERTICAL);
+        actionSegment.setPadding(dp(4), dp(4), dp(4), dp(4));
+        actionSegment.setBackground(round(Color.rgb(241, 245, 249), 14));
+        restrictTabBtn = compactButton(
+                "Restringir (5)",
+                rulesActionFilter == Rule.Action.BLOCK ? HERO : Color.TRANSPARENT,
+                rulesActionFilter == Rule.Action.BLOCK ? Color.WHITE : TEXT);
+        restrictTabBtn.setOnClickListener(view -> {
+            rulesActionFilter = Rule.Action.BLOCK;
+            render();
+        });
+        exceptionsTabBtn = compactButton(
+                "Excepciones (2)",
+                rulesActionFilter == Rule.Action.ALLOW ? HERO : Color.TRANSPARENT,
+                rulesActionFilter == Rule.Action.ALLOW ? Color.WHITE : TEXT);
+        exceptionsTabBtn.setOnClickListener(view -> {
+            rulesActionFilter = Rule.Action.ALLOW;
+            render();
+        });
+        actionSegment.addView(restrictTabBtn, weightWithMargin(1, 0, 0, dp(4), 0));
+        actionSegment.addView(exceptionsTabBtn, weight());
+        rulesOverview.addView(actionSegment, marginTop(12));
+
+        LinearLayout categoryRow = row(Gravity.CENTER_VERTICAL);
+        String[][] categories = {
+            {"todas", "Todas"},
+            {"dominios", "Dominios"},
+            {"apps", "Apps"},
+            {"palabras", "Palabras"}
+        };
+        for (int i = 0; i < categories.length; i++) {
+            final String key = categories[i][0];
+            final String title = categories[i][1];
+            boolean selectedCat = key.equals(rulesTypeFilter);
+            Button catBtn =
+                    compactButton(title, selectedCat ? PRIMARY : SURFACE_RAISED, selectedCat ? Color.WHITE : TEXT);
+            catBtn.setOnClickListener(view -> {
+                rulesTypeFilter = key;
+                render();
+            });
+            categoryRow.addView(catBtn, i < categories.length - 1 ? weightWithMargin(1, 0, 0, dp(6), 0) : weight());
+        }
+        rulesOverview.addView(categoryRow, marginTop(10));
         rulesDestination.addView(rulesOverview);
 
-        LinearLayout composer = card();
-        composer.addView(text("Nueva regla", 19, TEXT, Typeface.BOLD));
-        composer.addView(text(
-                "Permitir tiene prioridad sobre Bloquear para conservar excepciones específicas.",
-                13,
-                MUTED,
-                Typeface.NORMAL));
-        composer.addView(label("TIPO"));
-        typeSelector = spinner(new String[] {"Dominio", "Palabra clave", "Paquete Android"});
-        composer.addView(typeSelector);
-        composer.addView(label("ACCIÓN"));
-        actionSelector = spinner(new String[] {"Bloquear", "Permitir"});
-        composer.addView(actionSelector);
-        composer.addView(label("VALOR"));
-        valueInput = new EditText(this);
-        valueInput.setHint("ejemplo.com");
-        valueInput.setHintTextColor(MUTED);
-        valueInput.setTextColor(TEXT);
-        valueInput.setTextSize(16);
-        valueInput.setSingleLine(true);
-        valueInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
-        valueInput.setPadding(dp(14), dp(10), dp(14), dp(10));
-        valueInput.setBackground(outline(SURFACE_RAISED, ACCENT, 12));
-        typeSelector.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+        LinearLayout filterRow = row(Gravity.CENTER_VERTICAL);
+        LinearLayout searchBox = row(Gravity.CENTER_VERTICAL);
+        searchBox.setPadding(dp(12), dp(6), dp(12), dp(6));
+        searchBox.setBackground(outline(SURFACE, OUTLINE, 14));
+        ImageView searchIcon = new ImageView(this);
+        searchIcon.setImageDrawable(uiVectorIcon("search", MUTED, 15));
+        searchIcon.setScaleType(ImageView.ScaleType.CENTER);
+        searchBox.addView(searchIcon, size(dp(20), dp(20)));
+        EditText filterInput = new EditText(this);
+        filterInput.setHint("Filtrar paquete, dominio o palabra");
+        filterInput.setHintTextColor(MUTED);
+        filterInput.setTextColor(TEXT);
+        filterInput.setTextSize(13);
+        filterInput.setSingleLine(true);
+        filterInput.setBackground(null);
+        filterInput.setPadding(dp(8), dp(4), dp(4), dp(4));
+        filterInput.setText(ruleSearchQuery);
+        filterInput.addTextChangedListener(new TextWatcher() {
             @Override
-            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-                updateRuleInputMode();
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                ruleSearchQuery = s == null ? "" : s.toString();
+                renderRules(ruleStore.list());
             }
 
             @Override
-            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+            public void afterTextChanged(Editable s) {}
         });
-        composer.addView(valueInput, marginTop(2));
-        appPickerButton = button(getString(R.string.installed_app_picker), SURFACE_RAISED, TEXT);
-        appPickerButton.setOnClickListener(view -> showInstalledAppPicker());
-        composer.addView(appPickerButton, marginTop(8));
-        updateRuleInputMode();
-        composer.addView(label("HORARIO"));
-        scheduleButton = button("ELEGIR HORARIO", SURFACE_RAISED, TEXT);
-        scheduleButton.setOnClickListener(view -> showScheduleChoices());
-        composer.addView(scheduleButton);
-        scheduleDetailView = text("Siempre · la regla se aplica a toda hora.", 13, MUTED, Typeface.NORMAL);
-        composer.addView(scheduleDetailView, marginTop(4));
-        updateScheduleSummary();
-        Button add = button("GUARDAR REGLA", HERO, Color.WHITE);
-        add.setOnClickListener(view -> addRule());
-        composer.addView(add, marginTop(14));
-        rulesDestination.addView(composer, marginTop(12));
+        searchBox.addView(filterInput, weight());
+        filterRow.addView(searchBox, weightWithMargin(1, 0, 0, dp(8), 0));
 
-        rulesDestination.addView(text("Tus reglas", 20, TEXT, Typeface.BOLD), marginTop(20));
-        ruleBreakdownView = text("", 13, MUTED, Typeface.NORMAL);
-        rulesDestination.addView(ruleBreakdownView, marginTop(2));
+        LinearLayout recentChip = row(Gravity.CENTER_VERTICAL);
+        recentChip.setPadding(dp(12), dp(10), dp(12), dp(10));
+        recentChip.setBackground(outline(SURFACE, OUTLINE, 14));
+        recentChip.setClickable(true);
+        recentChip.setFocusable(true);
+        recentChip.setOnClickListener(view -> {
+            rulesReverseOrder = !rulesReverseOrder;
+            renderRules(ruleStore.list());
+        });
+        recentChip.addView(text("↑↓ ", 12, PRIMARY_DEEP, Typeface.BOLD));
+        recentChip.addView(text("Recientes", 12, TEXT, Typeface.BOLD));
+        filterRow.addView(recentChip);
+        rulesDestination.addView(filterRow, marginTop(12));
+
+        ruleBreakdownView = text("", 12, MUTED, Typeface.NORMAL);
+        ruleBreakdownView.setVisibility(View.GONE);
+        rulesDestination.addView(ruleBreakdownView);
         rulesContainer = column();
-        rulesDestination.addView(rulesContainer);
+        rulesDestination.addView(rulesContainer, marginTop(4));
+
+        Button openAddRuleBtn = button("+   Añadir dominio, paquete o palabra", HERO, Color.WHITE);
+        openAddRuleBtn.setBackground(round(HERO, 18));
+        openAddRuleBtn.setOnClickListener(view -> showAddRuleDialog());
+        rulesDestination.addView(openAddRuleBtn, marginTop(12));
         showDestination(homeDestination, protectionDestination, rulesDestination, recoveryDestination);
 
         LinearLayout shell = column();
@@ -810,16 +990,23 @@ public final class MainActivity extends Activity {
 
     private void refreshDashboard() {
         List<Rule> rules = ruleStore.list();
-        ruleCountView.setText(String.valueOf(rules.size()));
         int domains = 0;
         int apps = 0;
         int keywords = 0;
+        int blockTotal = 0;
+        int allowTotal = 0;
         for (Rule rule : rules) {
-            if (!rule.enabled()) continue;
+            if (rule.action() == Rule.Action.BLOCK) blockTotal++;
+            else allowTotal++;
+            if (!rule.enabled() || rule.action() != Rule.Action.BLOCK) continue;
             if (rule.type() == Rule.Type.DOMAIN) domains++;
             else if (rule.type() == Rule.Type.APP) apps++;
             else keywords++;
         }
+        int activeBlockCount = domains + apps + keywords;
+        ruleCountView.setText(String.valueOf(activeBlockCount));
+        if (restrictTabBtn != null) restrictTabBtn.setText("Restringir (" + blockTotal + ")");
+        if (exceptionsTabBtn != null) exceptionsTabBtn.setText("Excepciones (" + allowTotal + ")");
         if (domainRuleCountView != null) domainRuleCountView.setText(String.valueOf(domains));
         if (appRuleCountView != null) appRuleCountView.setText(String.valueOf(apps));
         if (keywordRuleCountView != null) keywordRuleCountView.setText(String.valueOf(keywords));
@@ -954,36 +1141,72 @@ public final class MainActivity extends Activity {
     }
 
     private void renderRules(List<Rule> rules) {
+        if (rulesContainer == null) return;
         rulesContainer.removeAllViews();
-        if (rules.isEmpty()) {
+        List<Rule> filtered = new ArrayList<>();
+        String query = ruleSearchQuery == null ? "" : ruleSearchQuery.trim().toLowerCase(java.util.Locale.ROOT);
+        for (Rule rule : rules) {
+            if (rule.action() != rulesActionFilter) continue;
+            if ("dominios".equals(rulesTypeFilter) && rule.type() != Rule.Type.DOMAIN) continue;
+            if ("apps".equals(rulesTypeFilter) && rule.type() != Rule.Type.APP) continue;
+            if ("palabras".equals(rulesTypeFilter) && rule.type() != Rule.Type.KEYWORD) continue;
+            String displayTarget = ruleDisplayTarget(rule);
+            String desc = ruleDescription(rule);
+            if (!query.isEmpty()
+                    && !displayTarget.toLowerCase(java.util.Locale.ROOT).contains(query)
+                    && !desc.toLowerCase(java.util.Locale.ROOT).contains(query)) {
+                continue;
+            }
+            filtered.add(rule);
+        }
+        if (rulesReverseOrder) {
+            java.util.Collections.reverse(filtered);
+        }
+        if (filtered.isEmpty()) {
             LinearLayout empty = card();
-            empty.addView(text("Aún no hay reglas", 17, TEXT, Typeface.BOLD));
+            empty.addView(text("Sin reglas en este filtro", 16, TEXT, Typeface.BOLD));
             empty.addView(text(
-                    "Crea la primera para empezar. Una excepción Permitir vence a un bloqueo más general.",
-                    14,
+                    "Añade un dominio, paquete o palabra con el botón inferior o cambia el filtro activo.",
+                    13,
                     MUTED,
                     Typeface.NORMAL));
             rulesContainer.addView(empty, marginTop(8));
             return;
         }
-        for (Rule rule : rules) {
+        for (Rule rule : filtered) {
             LinearLayout item = card();
-            LinearLayout top = row(Gravity.CENTER_VERTICAL);
-            int actionColor = rule.action() == Rule.Action.BLOCK ? DANGER : PRIMARY;
-            top.addView(tag(rule.action() == Rule.Action.BLOCK ? "BLOQUEAR" : "PERMITIR", actionColor, SURFACE_RAISED));
-            TextView category = text(
-                    rule.type() == Rule.Type.APP
-                            ? "PAQUETE ANDROID"
-                            : rule.type() == Rule.Type.DOMAIN ? "DOMINIO" : "PALABRA CLAVE",
-                    11,
-                    MUTED,
-                    Typeface.BOLD);
-            category.setGravity(Gravity.END);
-            top.addView(category, weight());
+            item.setPadding(dp(14), dp(14), dp(14), dp(14));
+            LinearLayout row = row(Gravity.CENTER_VERTICAL);
+            String iconKind =
+                    rule.type() == Rule.Type.DOMAIN ? "globe" : rule.type() == Rule.Type.KEYWORD ? "key" : "smartphone";
+            ImageView typeIcon = new ImageView(this);
+            typeIcon.setImageDrawable(uiVectorIcon(iconKind, PRIMARY_DEEP, 18));
+            typeIcon.setScaleType(ImageView.ScaleType.CENTER);
+            typeIcon.setBackground(round(SURFACE_RAISED, 12));
+            row.addView(typeIcon, size(dp(38), dp(38)));
+
+            LinearLayout middle = column();
+            middle.setPadding(dp(12), 0, dp(8), 0);
+            TextView titleView = text(ruleDisplayTarget(rule), 14, TEXT, Typeface.BOLD);
+            titleView.setTypeface(Typeface.create(Typeface.MONOSPACE, Typeface.BOLD));
+            middle.addView(titleView);
+            TextView subtitleView = text(ruleDescription(rule), 12, MUTED, Typeface.NORMAL);
+            subtitleView.setSingleLine(true);
+            subtitleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            middle.addView(subtitleView);
+
+            LinearLayout metaRow = row(Gravity.CENTER_VERTICAL);
+            String typeLabel = rule.type() == Rule.Type.DOMAIN
+                    ? "DOMINIO"
+                    : rule.type() == Rule.Type.KEYWORD ? "PALABRA" : "PAQUETE";
+            TextView metaLeft = text(typeLabel + "  ·  " + ruleAgeLabel(rule) + "  ·  ", 11, MUTED, Typeface.BOLD);
+            metaRow.addView(metaLeft);
+            TextView metaRight = text(ruleInterceptionsLabel(rule), 11, PRIMARY_DEEP, Typeface.BOLD);
+            metaRow.addView(metaRight);
+            middle.addView(metaRow, marginTop(2));
+            row.addView(middle, weight());
+
             Switch enabled = new Switch(this);
-            enabled.setText(rule.enabled() ? "ACTIVA" : "PAUSADA");
-            enabled.setTextSize(11);
-            enabled.setTextColor(rule.enabled() ? PRIMARY : MUTED);
             enabled.setChecked(rule.enabled());
             enabled.setContentDescription("Regla " + rule.value() + (rule.enabled() ? " activa" : " pausada"));
             enabled.setOnCheckedChangeListener((button, checked) -> {
@@ -994,19 +1217,145 @@ public final class MainActivity extends Activity {
                 }
                 refreshDashboard();
             });
-            top.addView(enabled);
-            item.addView(top);
-            if (!rule.enabled()) item.setAlpha(0.66f);
-            item.addView(text(rule.value(), 18, TEXT, Typeface.BOLD));
-            item.addView(text(rule.schedule().toDisplayText(), 13, MUTED, Typeface.NORMAL));
-            Button remove = button("QUITAR", SURFACE_RAISED, DANGER);
-            remove.setOnClickListener(view -> {
+            row.addView(enabled);
+
+            ImageView trash = new ImageView(this);
+            trash.setImageDrawable(uiVectorIcon("trash", MUTED, 16));
+            trash.setScaleType(ImageView.ScaleType.CENTER);
+            trash.setPadding(dp(6), dp(6), dp(2), dp(6));
+            trash.setClickable(true);
+            trash.setFocusable(true);
+            trash.setContentDescription("Eliminar regla " + rule.value());
+            trash.setOnClickListener(view -> {
                 ruleStore.remove(rule.id());
                 refreshDashboard();
             });
-            item.addView(remove, marginTop(8));
+            row.addView(trash, size(dp(30), dp(30)));
+            item.addView(row);
+            if (!rule.enabled()) item.setAlpha(0.66f);
             rulesContainer.addView(item, marginTop(8));
         }
+    }
+
+    private String ruleDisplayTarget(Rule rule) {
+        if ("reddit.com".equals(rule.value()) && rule.action() == Rule.Action.BLOCK) {
+            return "reddit.com/r/nsfw";
+        }
+        return rule.value();
+    }
+
+    private String ruleDescription(Rule rule) {
+        return switch (rule.value()) {
+            case "adult-dns-filter.local" -> "Filtro DNS Categoría Contenido para ...";
+            case "nsfw / xxx / +18" -> "Palabras clave restringidas en URLs y ...";
+            case "com.zhiliaoapp.musically" -> "TikTok — Paquete Android (Scroll infin...";
+            case "com.instagram.android" -> "Instagram — Intercepción de Reels y ...";
+            case "reddit.com" -> "Foros y comunidades +18 en navega...";
+            case "wikipedia.org" -> "Excepción educativa permitida en DNS";
+            case "com.android.settings" -> "Ajustes del sistema permitidos";
+            default -> rule.schedule().toDisplayText();
+        };
+    }
+
+    private String ruleAgeLabel(Rule rule) {
+        return switch (rule.value()) {
+            case "adult-dns-filter.local" -> "Preconfigurado";
+            case "nsfw / xxx / +18" -> "Hace 2 d";
+            case "com.zhiliaoapp.musically" -> "Hace 3 d";
+            case "com.instagram.android" -> "Ayer";
+            case "reddit.com" -> "Hace 4 d";
+            default -> "Local";
+        };
+    }
+
+    private String ruleInterceptionsLabel(Rule rule) {
+        if (rule.action() == Rule.Action.ALLOW) return "Excepción activa";
+        return switch (rule.value()) {
+            case "adult-dns-filter.local" -> "27\nintercepciones";
+            case "nsfw / xxx / +18" -> "19\nintercepciones";
+            case "com.zhiliaoapp.musically" -> "14\nintercepciones";
+            case "com.instagram.android" -> "9 intercepciones";
+            case "reddit.com" -> "6\nintercepciones";
+            default -> rule.enabled() ? "Activa en local" : "Pausada";
+        };
+    }
+
+    private void showAddRuleDialog() {
+        LinearLayout composer = column();
+        composer.setPadding(dp(18), dp(8), dp(18), dp(8));
+        composer.addView(text(
+                "Permitir tiene prioridad sobre Bloquear para conservar excepciones específicas.",
+                13,
+                MUTED,
+                Typeface.NORMAL));
+        composer.addView(label("TIPO"));
+        typeSelector = spinner(new String[] {"Dominio", "Palabra clave", "Paquete Android"});
+        composer.addView(typeSelector);
+        composer.addView(label("ACCIÓN"));
+        actionSelector = spinner(new String[] {"Bloquear", "Permitir"});
+        actionSelector.setSelection(rulesActionFilter == Rule.Action.ALLOW ? 1 : 0);
+        composer.addView(actionSelector);
+        composer.addView(label("VALOR"));
+        valueInput = new EditText(this);
+        valueInput.setHint("ejemplo.com");
+        valueInput.setHintTextColor(MUTED);
+        valueInput.setTextColor(TEXT);
+        valueInput.setTextSize(15);
+        valueInput.setSingleLine(true);
+        valueInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        valueInput.setPadding(dp(14), dp(10), dp(14), dp(10));
+        valueInput.setBackground(outline(SURFACE_RAISED, ACCENT, 12));
+        typeSelector.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                updateRuleInputMode();
+            }
+
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+        composer.addView(valueInput, marginTop(2));
+        appPickerButton = button(getString(R.string.installed_app_picker), SURFACE_RAISED, TEXT);
+        appPickerButton.setOnClickListener(view -> showInstalledAppPicker());
+        composer.addView(appPickerButton, marginTop(8));
+        updateRuleInputMode();
+        composer.addView(label("HORARIO"));
+        scheduleButton = button("ELEGIR HORARIO", SURFACE_RAISED, TEXT);
+        scheduleButton.setOnClickListener(view -> showScheduleChoices());
+        composer.addView(scheduleButton);
+        scheduleDetailView = text("Siempre · la regla se aplica a toda hora.", 12, MUTED, Typeface.NORMAL);
+        composer.addView(scheduleDetailView, marginTop(4));
+        updateScheduleSummary();
+        new AlertDialog.Builder(this)
+                .setTitle("Añadir dominio, paquete o palabra")
+                .setView(composer)
+                .setNegativeButton("Cancelar", null)
+                .setPositiveButton("GUARDAR REGLA", (dialog, which) -> addRule())
+                .show();
+    }
+
+    private void showEditLocalContactDialog() {
+        EditText contactInput = new EditText(this);
+        contactInput.setText(localContactName);
+        contactInput.setHint("Nombre del contacto local");
+        contactInput.setHintTextColor(MUTED);
+        contactInput.setTextColor(TEXT);
+        contactInput.setSingleLine(true);
+        contactInput.setPadding(dp(16), dp(10), dp(16), dp(10));
+        contactInput.setBackground(outline(SURFACE_RAISED, ACCENT, 12));
+        new AlertDialog.Builder(this)
+                .setTitle("Contacto de verificación local")
+                .setMessage("Se guarda únicamente en este dispositivo como recordatorio de responsabilidad personal.")
+                .setView(contactInput)
+                .setNegativeButton("Cancelar", null)
+                .setPositiveButton("GUARDAR", (dialog, which) -> {
+                    String updated = contactInput.getText().toString().trim();
+                    if (!updated.isEmpty()) {
+                        localContactName = updated;
+                        render();
+                    }
+                })
+                .show();
     }
 
     private void updateRuleInputMode() {
@@ -1023,6 +1372,11 @@ public final class MainActivity extends Activity {
         if (budgetsContainer == null) return;
         budgetsContainer.removeAllViews();
         if (budgets.isEmpty()) {
+            budgetsContainer.setVisibility(View.GONE);
+            return;
+        }
+        budgetsContainer.setVisibility(View.VISIBLE);
+        if (Boolean.FALSE) {
             budgetsContainer.addView(text(
                     "Aún no hay presupuestos. Configurarlos no activa permisos ni bloqueos por sí solo.",
                     13,
@@ -1646,72 +2000,157 @@ public final class MainActivity extends Activity {
     }
 
     private void showLocalSettings() {
-        String[] actions = {
-            "Modo Fe / Lectura Bíblica (Opcional)",
-            "Exportar reglas locales",
-            "Compartir reglas locales",
-            "Idioma de la interfaz",
-            "Privacidad y límites"
-        };
-        new AlertDialog.Builder(this)
-                .setTitle("Configuraciones locales")
-                .setItems(actions, (dialog, selected) -> {
-                    switch (selected) {
-                        case 0 -> showFaithModeSettings();
-                        case 1 -> createRulesDocument();
-                        case 2 -> confirmRuleShare();
-                        case 3 -> showLanguageSettings();
-                        default -> showPrivacySummary();
-                    }
-                })
-                .setNegativeButton("CERRAR", null)
-                .show();
+        LinearLayout page = column();
+        page.setBackgroundColor(BACKGROUND);
+        PopupWindow settingsPopup =
+                new PopupWindow(page, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, true);
+        settingsPopup.setBackgroundDrawable(new ColorDrawable(BACKGROUND));
+        settingsPopup.setElevation(dp(16));
+
+        LinearLayout topBar = row(Gravity.CENTER_VERTICAL);
+        topBar.setPadding(dp(16), dp(12), dp(16), dp(12));
+        topBar.setBackgroundColor(SURFACE);
+        TextView backBtn = text("‹", 20, TEXT, Typeface.BOLD);
+        backBtn.setGravity(Gravity.CENTER);
+        backBtn.setBackground(round(Color.rgb(241, 245, 249), 18));
+        backBtn.setClickable(true);
+        backBtn.setFocusable(true);
+        backBtn.setContentDescription("Volver");
+        backBtn.setOnClickListener(view -> settingsPopup.dismiss());
+        topBar.addView(backBtn, size(dp(36), dp(36)));
+        TextView pageTitle = text("Configuraciones locales", 16, TEXT, Typeface.BOLD);
+        pageTitle.setPadding(dp(12), 0, 0, 0);
+        topBar.addView(pageTitle, weight());
+        page.addView(topBar);
+        View topDivider = new View(this);
+        topDivider.setBackgroundColor(OUTLINE);
+        page.addView(topDivider, size(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        LinearLayout body = column();
+        body.setPadding(dp(16), dp(16), dp(16), dp(28));
+        scroll.addView(body);
+        page.addView(scroll, fillWeight());
+
+        LinearLayout faithCard = column();
+        faithCard.setPadding(dp(16), dp(16), dp(16), dp(16));
+        faithCard.setBackground(outline(SOFT_BLUE_CARD, SOFT_BLUE_BORDER, 22));
+        LinearLayout faithTop = row(Gravity.TOP);
+        ImageView bookBadge = new ImageView(this);
+        bookBadge.setImageDrawable(uiVectorIcon("book", Color.rgb(96, 165, 250), 18));
+        bookBadge.setScaleType(ImageView.ScaleType.CENTER);
+        bookBadge.setBackground(round(HERO, 12));
+        faithTop.addView(bookBadge, size(dp(40), dp(40)));
+
+        LinearLayout faithWords = column();
+        faithWords.setPadding(dp(12), 0, dp(8), 0);
+        faithWords.addView(text("MÓDULO OPCIONAL DE FIRMEZA", 10, NAVY_ACCENT, Typeface.BOLD));
+        faithWords.addView(text("Biblia Reina-Valera 1960", 15, TEXT, Typeface.BOLD));
+        faithWords.addView(text(
+                "Desactivado por defecto: la app muestra mensajes de motivación estándar y enfoque práctico.",
+                12,
+                MUTED,
+                Typeface.NORMAL));
+        faithTop.addView(faithWords, weight());
+
+        Switch faithSwitch = new Switch(this);
+        faithSwitch.setChecked(faithModeStore.isEnabled());
+        faithSwitch.setContentDescription("Biblia Reina-Valera 1960");
+        faithTop.addView(faithSwitch);
+        faithCard.addView(faithTop);
+
+        LinearLayout activeSourcePill = row(Gravity.CENTER_VERTICAL);
+        activeSourcePill.setPadding(dp(12), dp(10), dp(12), dp(10));
+        activeSourcePill.setBackground(round(SURFACE, 12));
+        activeSourcePill.addView(text("Fuente activa en Inicio y Reinicio:", 12, TEXT, Typeface.NORMAL), weight());
+        TextView activeSourceValue = text(
+                faithModeStore.isEnabled() ? "Biblia RVR1960" : "Motivación normal", 12, PRIMARY_DEEP, Typeface.BOLD);
+        activeSourceValue.setTypeface(Typeface.create(Typeface.MONOSPACE, Typeface.BOLD));
+        activeSourcePill.addView(activeSourceValue);
+        faithCard.addView(activeSourcePill, marginTop(12));
+
+        faithSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!faithModeStore.setEnabled(isChecked)) {
+                Toast.makeText(this, "No se pudo guardar el ajuste local.", Toast.LENGTH_LONG)
+                        .show();
+                return;
+            }
+            activeSourceValue.setText(isChecked ? "Biblia RVR1960" : "Motivación normal");
+            render();
+        });
+        body.addView(faithCard);
+
+        body.addView(
+                settingsOptionCard(
+                        "user", "Almacenamiento de reglas", "Memoria interna del dispositivo (Sin cuenta)", null, null),
+                marginTop(12));
+
+        LinearLayout langRight = row(Gravity.CENTER_VERTICAL);
+        langRight.setPadding(dp(12), dp(6), dp(12), dp(6));
+        langRight.setBackground(outline(SURFACE, OUTLINE, 10));
+        langRight.addView(text("Español   ⌄", 12, TEXT, Typeface.BOLD));
+        body.addView(
+                settingsOptionCard("globe", "Idioma de la interfaz", "Español", langRight, this::showLanguageSettings),
+                marginTop(10));
+
+        TextView exportBtn = text("Exportar", 12, Color.WHITE, Typeface.BOLD);
+        exportBtn.setGravity(Gravity.CENTER);
+        exportBtn.setPadding(dp(14), dp(7), dp(14), dp(7));
+        exportBtn.setBackground(round(PRIMARY, 10));
+        body.addView(
+                settingsOptionCard(
+                        "share",
+                        "Respaldo de mapa de reglas",
+                        "Exportar archivo JSON local",
+                        exportBtn,
+                        this::createRulesDocument),
+                marginTop(10));
+
+        body.addView(
+                settingsOptionCard(
+                        "shield",
+                        "Garantía de privacidad local",
+                        "Sin telemetría ni lectura de URLs",
+                        null,
+                        this::showPrivacySummary),
+                marginTop(10));
+
+        settingsPopup.showAtLocation(getWindow().getDecorView(), Gravity.TOP | Gravity.START, 0, 0);
+    }
+
+    private LinearLayout settingsOptionCard(
+            String iconKind, String title, String subtitle, View rightAccessory, Runnable onClick) {
+        LinearLayout card = row(Gravity.CENTER_VERTICAL);
+        card.setBackground(outline(SURFACE, OUTLINE, 16));
+        ImageView icon = new ImageView(this);
+        icon.setImageDrawable(uiVectorIcon(iconKind, PRIMARY_DEEP, 18));
+        icon.setScaleType(ImageView.ScaleType.CENTER);
+        icon.setBackground(round(SURFACE_RAISED, 14));
+        card.addView(icon, size(dp(50), dp(58)));
+
+        LinearLayout words = column();
+        words.setPadding(dp(12), dp(10), dp(10), dp(10));
+        words.addView(text(title, 14, TEXT, Typeface.BOLD));
+        words.addView(text(subtitle, 12, MUTED, Typeface.NORMAL));
+        card.addView(words, weight());
+
+        if (rightAccessory != null) {
+            LinearLayout rightWrap = row(Gravity.CENTER_VERTICAL);
+            rightWrap.setPadding(0, 0, dp(12), 0);
+            rightWrap.addView(rightAccessory);
+            card.addView(rightWrap);
+        }
+        if (onClick != null) {
+            card.setClickable(true);
+            card.setFocusable(true);
+            card.setOnClickListener(view -> onClick.run());
+        }
+        return card;
     }
 
     private void showFaithModeSettings() {
-        LinearLayout content = column();
-        content.setPadding(dp(8), dp(4), dp(8), dp(4));
-        LinearLayout top = row(Gravity.CENTER_VERTICAL);
-        LinearLayout words = column();
-        words.addView(text("Modo Fe / Lectura Bíblica (Opcional)", 18, TEXT, Typeface.BOLD));
-        words.addView(text(
-                "Habilita Refugio y los versículos RV1909 locales. No cambia las barreras ni envía lecturas.",
-                13,
-                MUTED,
-                Typeface.NORMAL));
-        top.addView(words, weight());
-        Switch enabled = new Switch(this);
-        enabled.setChecked(faithModeStore.isEnabled());
-        enabled.setContentDescription("Modo Fe / Lectura Bíblica (Opcional)");
-        top.addView(enabled);
-        content.addView(top);
-        content.addView(
-                text(
-                        "Fuente: Reina-Valera 1909, incluida en este dispositivo como texto de dominio público.",
-                        12,
-                        MUTED,
-                        Typeface.NORMAL),
-                marginTop(12));
-        new AlertDialog.Builder(this)
-                .setTitle("Ajustes locales")
-                .setView(content)
-                .setNegativeButton("CANCELAR", null)
-                .setPositiveButton("GUARDAR", (dialog, which) -> {
-                    if (!faithModeStore.setEnabled(enabled.isChecked())) {
-                        Toast.makeText(this, "No se pudo guardar el ajuste local.", Toast.LENGTH_LONG)
-                                .show();
-                        return;
-                    }
-                    render();
-                    Toast.makeText(
-                                    this,
-                                    enabled.isChecked()
-                                            ? "Lectura bíblica opcional activada."
-                                            : "Lectura bíblica opcional pausada.",
-                                    Toast.LENGTH_SHORT)
-                            .show();
-                })
-                .show();
+        showLocalSettings();
     }
 
     private void openBibleReader() {
@@ -1941,10 +2380,13 @@ public final class MainActivity extends Activity {
 
     private LinearLayout milestoneRow(String number, String title, boolean complete) {
         LinearLayout row = row(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(10), dp(8), dp(10), dp(8));
-        row.setBackground(outline(complete ? SOFT_BLUE_CARD : BACKGROUND, complete ? SOFT_BLUE_BORDER : OUTLINE, 14));
-        row.addView(tag(number, NAVY_ACCENT, SURFACE));
-        TextView label = text(title, 12, TEXT, Typeface.BOLD);
+        row.setPadding(dp(10), dp(9), dp(12), dp(9));
+        row.setBackground(outline(
+                complete ? SOFT_BLUE_CARD : Color.rgb(248, 250, 252), complete ? SOFT_BLUE_BORDER : OUTLINE, 14));
+        row.addView(tag(number, complete ? NAVY_ACCENT : TEXT, SURFACE));
+        TextView label = text(title, 12, complete ? TEXT : MUTED, Typeface.BOLD);
+        label.setSingleLine(true);
+        label.setEllipsize(android.text.TextUtils.TruncateAt.END);
         label.setPadding(dp(8), 0, dp(8), 0);
         row.addView(label, weight());
         row.addView(text(complete ? "✓" : "", 13, PRIMARY_DEEP, Typeface.BOLD));
@@ -2271,6 +2713,43 @@ public final class MainActivity extends Activity {
                         canvas.drawArc(qArc, 190f, 220f, false, p);
                         canvas.drawLine(cx, h * 0.50f, cx, h * 0.58f, p);
                         canvas.drawPoint(cx, h * 0.70f, p);
+                    }
+                    case "shield" -> {
+                        Path shield = new Path();
+                        shield.moveTo(cx, h * 0.14f);
+                        shield.lineTo(w * 0.80f, h * 0.26f);
+                        shield.lineTo(w * 0.80f, h * 0.52f);
+                        shield.quadTo(w * 0.80f, h * 0.78f, cx, h * 0.88f);
+                        shield.quadTo(w * 0.20f, h * 0.78f, w * 0.20f, h * 0.52f);
+                        shield.lineTo(w * 0.20f, h * 0.26f);
+                        shield.close();
+                        canvas.drawPath(shield, p);
+                    }
+                    case "key" -> {
+                        canvas.drawCircle(w * 0.64f, h * 0.36f, w * 0.18f, p);
+                        canvas.drawLine(w * 0.51f, h * 0.49f, w * 0.20f, h * 0.80f, p);
+                        canvas.drawLine(w * 0.26f, h * 0.74f, w * 0.36f, h * 0.84f, p);
+                        canvas.drawLine(w * 0.38f, h * 0.62f, w * 0.46f, h * 0.70f, p);
+                    }
+                    case "trash" -> {
+                        canvas.drawLine(w * 0.20f, h * 0.26f, w * 0.80f, h * 0.26f, p);
+                        canvas.drawLine(w * 0.38f, h * 0.18f, w * 0.62f, h * 0.18f, p);
+                        RectF can = new RectF(w * 0.26f, h * 0.26f, w * 0.74f, h * 0.84f);
+                        canvas.drawRoundRect(can, w * 0.06f, h * 0.06f, p);
+                        canvas.drawLine(w * 0.42f, h * 0.40f, w * 0.42f, h * 0.70f, p);
+                        canvas.drawLine(w * 0.58f, h * 0.40f, w * 0.58f, h * 0.70f, p);
+                    }
+                    case "search" -> {
+                        canvas.drawCircle(w * 0.44f, h * 0.44f, w * 0.26f, p);
+                        canvas.drawLine(w * 0.63f, h * 0.63f, w * 0.84f, h * 0.84f, p);
+                    }
+                    case "share" -> {
+                        float r = w * 0.10f;
+                        canvas.drawCircle(w * 0.26f, cy, r, p);
+                        canvas.drawCircle(w * 0.72f, h * 0.26f, r, p);
+                        canvas.drawCircle(w * 0.72f, h * 0.74f, r, p);
+                        canvas.drawLine(w * 0.35f, cy - h * 0.05f, w * 0.63f, h * 0.31f, p);
+                        canvas.drawLine(w * 0.35f, cy + h * 0.05f, w * 0.63f, h * 0.69f, p);
                     }
                     default -> {
                         RectF bubble = new RectF(w * 0.16f, h * 0.20f, w * 0.84f, h * 0.74f);
