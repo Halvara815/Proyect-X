@@ -68,5 +68,8 @@
         <activity
             android:name=".BibleReaderActivity"
             android:exported="false" />
+        <activity
+            android:name=".CalibrationActivity"
+            android:exported="false" />
     </application>
 </manifest>

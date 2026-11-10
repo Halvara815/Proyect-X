@@ -18,6 +18,7 @@ demuestra ejecución de la aplicación de referencia.
 | `src/components/BloqueoScreen.tsx` | Tarjetas compactas, superficies y CTA jerarquizados | Lógica y contenido de la referencia |
 | `src/components/ListaBloqueadaScreen.tsx` | Agrupación de controles y estado visible de una regla | Reglas de muestra |
 | `src/components/ForoYMenuScreen.tsx` | Proporción y jerarquía del panel lateral local | Cualquier texto, enlaces o contenido remoto |
+| `src/components/DiagnosticoScreen.tsx` | Flujo inicial omitible, progreso y resultado de calibración | Preguntas, opciones, puntuación y datos de ejemplo |
 | `src/index.css` | Contraste entre cabecera oscura, fondo frío y superficies claras | CSS, tipografías y tokens literales |
 
 ## Implementación propia
@@ -29,3 +30,10 @@ almacenes locales existentes. No se importaron imágenes, corpus, datos estátic
 
 La validación posterior se realizó con `:app:lintDebug`, `:app:assembleDebug` y capturas del AVD
 para Inicio, Barreras y el centro local.
+
+## Calibración local propia
+
+Se añadió `CalibrationActivity`, presentada en el primer arranque hasta que el usuario la termina
+u omite. Su perfil usa tres preferencias de enfoque no clínicas (intención, momento preferido y
+modo de inicio), persiste únicamente mediante `SharedPreferences` y no modifica reglas, permisos,
+DNS, VPN ni aplicaciones. El panel local permite repetirla y Inicio muestra el perfil guardado.

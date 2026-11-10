@@ -75,6 +75,7 @@ public final class MainActivity extends Activity {
     private FocusSessionStore sessionStore;
     private HabitStreakStore habitStreakStore;
     private FaithModeStore faithModeStore;
+    private CalibrationStore calibrationStore;
     private RecoveryStore recoveryStore;
     private LinearLayout rulesContainer;
     private TextView ruleCountView;
@@ -109,8 +110,10 @@ public final class MainActivity extends Activity {
         sessionStore = new FocusSessionStore(this);
         habitStreakStore = new HabitStreakStore(this);
         faithModeStore = new FaithModeStore(this);
+        calibrationStore = new CalibrationStore(this);
         recoveryStore = new RecoveryStore(this);
         render();
+        if (!calibrationStore.isCompleted()) startActivity(CalibrationActivity.intent(this));
     }
 
     @Override
@@ -198,6 +201,21 @@ public final class MainActivity extends Activity {
         ((TextView) hero.getChildAt(1)).setTextColor(Color.WHITE);
         ((TextView) hero.getChildAt(2)).setTextColor(ACCENT);
         homeDestination.addView(hero, marginTop(16));
+
+        CalibrationStore.Profile profile = calibrationStore.read();
+        if (profile.hasSelections()) {
+            LinearLayout profileCard = card();
+            LinearLayout profileHeader = row(Gravity.CENTER_VERTICAL);
+            profileHeader.addView(text("Enfoque calibrado", 17, TEXT, Typeface.BOLD), weight());
+            profileHeader.addView(tag("LOCAL", PRIMARY, SURFACE_RAISED));
+            profileCard.addView(profileHeader);
+            profileCard.addView(text(
+                    profile.goal() + " · " + profile.window() + " · " + profile.mode(), 14, MUTED, Typeface.NORMAL));
+            Button reviseProfile = compactButton("AJUSTAR PERFIL", SURFACE_RAISED, PRIMARY);
+            reviseProfile.setOnClickListener(view -> openCalibration());
+            profileCard.addView(reviseProfile, marginTop(8));
+            homeDestination.addView(profileCard, marginTop(12));
+        }
 
         if (faithModeStore.isEnabled()) {
             LinearLayout refugeCard = card();
@@ -1204,6 +1222,13 @@ public final class MainActivity extends Activity {
         });
         content.addView(privacy, marginTop(6));
 
+        Button recalibrate = menuAction("REPETIR CALIBRACIÓN", "Actualiza tus preferencias locales de enfoque");
+        recalibrate.setOnClickListener(view -> {
+            popup.dismiss();
+            openCalibration();
+        });
+        content.addView(recalibrate, marginTop(6));
+
         Button faithMode = menuAction("MODO FE / LECTURA BÍBLICA", "Activa o pausa el lector local RV1909");
         faithMode.setOnClickListener(view -> {
             popup.dismiss();
@@ -1286,6 +1311,10 @@ public final class MainActivity extends Activity {
             return;
         }
         startActivity(BibleReaderActivity.intent(this));
+    }
+
+    private void openCalibration() {
+        startActivity(CalibrationActivity.intent(this));
     }
 
     private Button menuAction(String title, String detail) {
