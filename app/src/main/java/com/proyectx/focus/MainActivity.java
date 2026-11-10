@@ -141,27 +141,24 @@ public final class MainActivity extends Activity {
                 new ScrollView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         LinearLayout header = row(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(18), dp(18), dp(18), dp(16));
-        header.setBackgroundColor(HERO);
-        TextView mark = text("X", 18, Color.WHITE, Typeface.BOLD);
-        mark.setGravity(Gravity.CENTER);
-        mark.setBackground(round(PRIMARY, 16));
-        header.addView(mark, size(dp(44), dp(44)));
-        LinearLayout headerWords = column();
-        headerWords.setPadding(dp(12), 0, 0, 0);
-        headerWords.addView(text("Proyect X", 22, Color.WHITE, Typeface.BOLD));
-        headerWords.addView(text("PRIVACIDAD LOCAL · SIN CUENTA", 11, PRIMARY, Typeface.BOLD));
-        header.addView(headerWords, weight());
+        header.setPadding(dp(14), dp(9), dp(14), dp(9));
+        header.setBackgroundColor(SURFACE);
         ImageView menu = new ImageView(this);
         menu.setImageResource(R.drawable.ic_menu_centro);
-        menu.setColorFilter(Color.WHITE);
+        menu.setColorFilter(PRIMARY);
         menu.setContentDescription("Abrir centro local");
         menu.setClickable(true);
         menu.setFocusable(true);
-        menu.setPadding(dp(10), dp(10), dp(10), dp(10));
-        menu.setBackground(round(Color.rgb(24, 39, 74), 16));
+        menu.setPadding(dp(7), dp(7), dp(7), dp(7));
+        menu.setBackground(round(SURFACE_RAISED, 12));
         menu.setOnClickListener(this::showControlMenu);
-        header.addView(menu, size(dp(44), dp(44)));
+        header.addView(menu, size(dp(34), dp(34)));
+        LinearLayout headerWords = column();
+        headerWords.setPadding(dp(9), 0, 0, 0);
+        headerWords.addView(text("Proyect X", 15, TEXT, Typeface.BOLD));
+        headerWords.addView(text("ENFOQUE LOCAL · SIN CUENTA", 10, PRIMARY, Typeface.BOLD));
+        header.addView(headerWords, weight());
+        header.addView(tag("LOCAL", Color.WHITE, TEXT));
         root.addView(header);
 
         LinearLayout content = column();
@@ -179,83 +176,32 @@ public final class MainActivity extends Activity {
         destinations.addView(recoveryDestination);
         content.addView(destinations);
 
-        LinearLayout hero = card();
-        hero.setPadding(dp(18), dp(18), dp(18), dp(16));
-        hero.setBackground(round(HERO, 22));
-        hero.setElevation(0);
-        hero.addView(tag("MAPA DEL DÍA", PRIMARY, BACKGROUND));
-        hero.addView(text("Tu día, con menos interrupciones.", 25, TEXT, Typeface.BOLD));
-        hero.addView(text(
-                "Elige una sesión, ajusta tus reglas y conoce siempre el alcance de la protección que activas.",
-                15,
-                MUTED,
-                Typeface.NORMAL));
-        LinearLayout heroRoutes = row(Gravity.CENTER_VERTICAL);
-        Button barriersRoute = compactButton("VER BARRERAS", SURFACE, TEXT);
-        barriersRoute.setOnClickListener(view -> switchDestination("proteccion"));
-        heroRoutes.addView(barriersRoute, weightWithMargin(1, 0, 0, dp(8), 0));
-        Button rulesRoute = compactButton("REVISAR REGLAS", PRIMARY, Color.WHITE);
-        rulesRoute.setOnClickListener(view -> switchDestination("reglas"));
-        heroRoutes.addView(rulesRoute, weight());
-        hero.addView(heroRoutes, marginTop(12));
-        ((TextView) hero.getChildAt(1)).setTextColor(Color.WHITE);
-        ((TextView) hero.getChildAt(2)).setTextColor(ACCENT);
-        homeDestination.addView(hero, marginTop(16));
-
-        CalibrationStore.Profile profile = calibrationStore.read();
-        if (profile.hasSelections()) {
-            LinearLayout profileCard = card();
-            LinearLayout profileHeader = row(Gravity.CENTER_VERTICAL);
-            profileHeader.addView(text("Enfoque calibrado", 17, TEXT, Typeface.BOLD), weight());
-            profileHeader.addView(tag("LOCAL", PRIMARY, SURFACE_RAISED));
-            profileCard.addView(profileHeader);
-            profileCard.addView(text(
-                    profile.goal() + " · " + profile.window() + " · " + profile.mode(), 14, MUTED, Typeface.NORMAL));
-            Button reviseProfile = compactButton("AJUSTAR PERFIL", SURFACE_RAISED, PRIMARY);
-            reviseProfile.setOnClickListener(view -> openCalibration());
-            profileCard.addView(reviseProfile, marginTop(8));
-            homeDestination.addView(profileCard, marginTop(12));
-        }
-
-        if (faithModeStore.isEnabled()) {
-            LinearLayout refugeCard = card();
-            refugeCard.addView(tag("MODO FE OPCIONAL", PRIMARY, SURFACE_RAISED));
-            refugeCard.addView(text("Refugio para este momento", 19, TEXT, Typeface.BOLD), marginTop(8));
-            refugeCard.addView(
-                    text(
-                            "Filipenses 4:6 · Por nada estéis afanosos; sino sean notorias vuestras peticiones delante de Dios en toda oración y ruego, con hacimiento de gracias.",
-                            14,
-                            MUTED,
-                            Typeface.NORMAL),
-                    marginTop(5));
-            Button openReader = button("ABRIR LECTURA", PRIMARY, BACKGROUND);
-            openReader.setOnClickListener(view -> openBibleReader());
-            refugeCard.addView(openReader, marginTop(12));
-            homeDestination.addView(refugeCard, marginTop(12));
-        }
+        LinearLayout homeTabs = row(Gravity.CENTER_VERTICAL);
+        homeTabs.setPadding(dp(5), dp(4), dp(5), dp(4));
+        homeTabs.setBackground(outline(SURFACE, OUTLINE, 14));
+        homeTabs.addView(compactButton("CONSTANCIA", TEXT, Color.WHITE), weightWithMargin(1, 0, 0, dp(4), 0));
+        homeTabs.addView(compactButton("BITÁCORA", SURFACE, MUTED), weightWithMargin(1, 0, 0, dp(4), 0));
+        homeTabs.addView(compactButton("GUÍAS", SURFACE, MUTED), weight());
+        homeDestination.addView(homeTabs, marginTop(10));
 
         if (!isAccessibilityEnabled()) {
             LinearLayout accessNotice = card();
-            accessNotice.setPadding(dp(16), dp(14), dp(16), dp(14));
-            LinearLayout noticeHeader = row(Gravity.CENTER_VERTICAL);
-            noticeHeader.addView(tag("ACCIÓN REQUERIDA", DANGER, BACKGROUND));
-            noticeHeader.addView(text("Bloqueo de apps pendiente", 16, TEXT, Typeface.BOLD), weight());
-            accessNotice.addView(noticeHeader);
+            accessNotice.setPadding(dp(12), dp(10), dp(12), dp(10));
             accessNotice.addView(text(
-                    "Para aplicar reglas a aplicaciones, revisa y activa Accesibilidad desde los ajustes de Android. Esta app no puede encenderla por ti.",
-                    13,
+                    "El servicio de Accesibilidad de Android está inactivo. Las reglas locales para paquetes y navegadores se aplican en este dispositivo cuando lo revisas.",
+                    12,
                     MUTED,
                     Typeface.NORMAL));
-            Button openAccess = compactButton("REVISAR ACCESIBILIDAD", SURFACE_RAISED, TEXT);
+            Button openAccess = compactButton("ACCESIBILIDAD · REVISAR", ACCENT, TEXT);
             openAccess.setOnClickListener(view -> openAccessibilitySettings());
-            accessNotice.addView(openAccess, marginTop(8));
-            homeDestination.addView(accessNotice, marginTop(12));
+            accessNotice.addView(openAccess, marginTop(6));
+            homeDestination.addView(accessNotice, marginTop(10));
         }
 
         LinearLayout metrics = row(Gravity.CENTER_VERTICAL);
         metrics.addView(metricCard("REGLAS ACTIVAS", "0", "en este dispositivo"), weightWithMargin(1, 0, 0, dp(8), 0));
         metrics.addView(metricCard("COBERTURA", "Revisar", "permisos y modos"), weightWithMargin(1, 0, 0, 0, 0));
-        homeDestination.addView(metrics, marginTop(12));
+        homeDestination.addView(metrics, marginTop(10));
         ruleCountView = (TextView) ((LinearLayout) metrics.getChildAt(0)).getChildAt(1);
         protectionStatusView = (TextView) ((LinearLayout) metrics.getChildAt(1)).getChildAt(1);
 
@@ -307,15 +253,38 @@ public final class MainActivity extends Activity {
                 Typeface.NORMAL));
         homeDestination.addView(session, marginTop(16));
 
-        protectionDestination.addView(text("Protección del dispositivo", 21, TEXT, Typeface.BOLD), marginTop(20));
-        protectionDestination.addView(text(
-                "Activa el servicio solo si deseas bloquear paquetes Android. Android siempre pide esta aprobación manualmente.",
-                14,
+        LinearLayout protectionProfile = card();
+        protectionProfile.setPadding(dp(13), dp(12), dp(13), dp(12));
+        protectionProfile.setBackground(outline(Color.rgb(228, 238, 255), Color.rgb(184, 210, 255), 16));
+        LinearLayout protectionProfileHeader = row(Gravity.CENTER_VERTICAL);
+        protectionProfileHeader.addView(text("PERFIL DE PROTECCIÓN", 10, PRIMARY, Typeface.BOLD), weight());
+        protectionProfileHeader.addView(tag("LOCAL", PRIMARY, SURFACE));
+        protectionProfile.addView(protectionProfileHeader);
+        protectionProfile.addView(text("Barreras del dispositivo", 17, TEXT, Typeface.BOLD));
+        protectionProfile.addView(text(
+                "Las reglas seleccionadas se aplican localmente. Android conserva la aprobación manual de sus permisos.",
+                12,
                 MUTED,
                 Typeface.NORMAL));
-        Button accessibility = button("REVISAR ACCESIBILIDAD", SURFACE_RAISED, TEXT);
+        Button accessibility = compactButton("REVISAR ACCESIBILIDAD", TEXT, Color.WHITE);
         accessibility.setOnClickListener(view -> openAccessibilitySettings());
-        protectionDestination.addView(accessibility, marginTop(10));
+        protectionProfile.addView(accessibility, marginTop(8));
+        protectionDestination.addView(protectionProfile, marginTop(10));
+
+        LinearLayout localLayers = card();
+        LinearLayout localLayersHeader = row(Gravity.CENTER_VERTICAL);
+        localLayersHeader.addView(text("Capas de intercepción local", 15, TEXT, Typeface.BOLD), weight());
+        localLayersHeader.addView(tag("SIN NUBE", PRIMARY, BACKGROUND));
+        localLayers.addView(localLayersHeader);
+        localLayers.addView(text(
+                "DNS, paquetes Android y límites de uso se administran por separado; revisa cada capa antes de activarla.",
+                11,
+                MUTED,
+                Typeface.NORMAL));
+        Button localLayersRules = compactButton("IR AL EDITOR DE REGLAS", SURFACE_RAISED, PRIMARY);
+        localLayersRules.setOnClickListener(view -> switchDestination("reglas"));
+        localLayers.addView(localLayersRules, marginTop(7));
+        protectionDestination.addView(localLayers, marginTop(10));
 
         LinearLayout budgets = card();
         budgets.addView(text("Límites diarios", 19, TEXT, Typeface.BOLD));
@@ -441,6 +410,20 @@ public final class MainActivity extends Activity {
                 marginTop(8));
         recoveryDestination.addView(rhythmCard, marginTop(12));
 
+        LinearLayout rulesOverview = card();
+        rulesOverview.setPadding(dp(13), dp(12), dp(13), dp(12));
+        LinearLayout rulesOverviewHeader = row(Gravity.CENTER_VERTICAL);
+        rulesOverviewHeader.addView(text("MAPA DE REGLAS EN EL DISPOSITIVO", 10, PRIMARY, Typeface.BOLD), weight());
+        rulesOverviewHeader.addView(tag("LOCAL", PRIMARY, BACKGROUND));
+        rulesOverview.addView(rulesOverviewHeader);
+        rulesOverview.addView(text("Motor de reglas", 17, TEXT, Typeface.BOLD));
+        rulesOverview.addView(text(
+                "Dominios DNS, paquetes Android y palabras clave. Cada regla puede activarse, pausarse o eliminarse sin salir del dispositivo.",
+                12,
+                MUTED,
+                Typeface.NORMAL));
+        rulesDestination.addView(rulesOverview, marginTop(10));
+
         LinearLayout composer = card();
         composer.addView(text("Nueva regla", 19, TEXT, Typeface.BOLD));
         composer.addView(text(
@@ -488,7 +471,7 @@ public final class MainActivity extends Activity {
         Button add = button("GUARDAR REGLA", PRIMARY, BACKGROUND);
         add.setOnClickListener(view -> addRule());
         composer.addView(add, marginTop(14));
-        rulesDestination.addView(composer, marginTop(20));
+        rulesDestination.addView(composer, marginTop(10));
 
         rulesDestination.addView(text("Tus reglas", 20, TEXT, Typeface.BOLD), marginTop(22));
         ruleBreakdownView = text("", 13, MUTED, Typeface.NORMAL);
@@ -1186,15 +1169,14 @@ public final class MainActivity extends Activity {
         content.setPadding(dp(12), dp(12), dp(12), dp(18));
         content.setBackground(round(SURFACE, 20));
         LinearLayout drawerHeader = column();
-        drawerHeader.setPadding(dp(16), dp(18), dp(16), dp(16));
+        drawerHeader.setPadding(dp(16), dp(14), dp(16), dp(12));
         drawerHeader.setBackground(round(HERO, 16));
-        drawerHeader.addView(text("PROYECT X", 18, Color.WHITE, Typeface.BOLD));
+        drawerHeader.addView(text("Proyect X", 16, Color.WHITE, Typeface.BOLD));
         drawerHeader.addView(text("CENTRO LOCAL · CONTROLES Y AYUDA", 10, ACCENT, Typeface.BOLD));
         drawerHeader.addView(
-                text("Tus datos y decisiones permanecen en este dispositivo.", 12, ACCENT, Typeface.NORMAL));
+                text("Sin cuenta · tus decisiones quedan en el dispositivo.", 11, ACCENT, Typeface.NORMAL));
         content.addView(drawerHeader);
-        content.addView(text("Centro local", 20, TEXT, Typeface.BOLD));
-        content.addView(text("Herramientas del dispositivo", 12, MUTED, Typeface.NORMAL));
+        content.addView(text("Centro local", 14, TEXT, Typeface.BOLD), marginTop(10));
 
         PopupWindow popup = new PopupWindow(content, dp(320), ViewGroup.LayoutParams.MATCH_PARENT, true);
         popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
@@ -1206,7 +1188,7 @@ public final class MainActivity extends Activity {
             popup.dismiss();
             createRulesDocument();
         });
-        content.addView(export, marginTop(12));
+        content.addView(export, marginTop(8));
 
         Button share = menuAction("COMPARTIR REGLAS", "Abre el selector de Android; nada se envía automáticamente");
         share.setOnClickListener(view -> {
@@ -1318,11 +1300,13 @@ public final class MainActivity extends Activity {
     }
 
     private Button menuAction(String title, String detail) {
-        Button action = button(title + "\n" + detail, SURFACE_RAISED, TEXT);
+        Button action = compactButton(title + "   ›", SURFACE, TEXT);
         action.setAllCaps(false);
         action.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         action.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
-        action.setTextSize(13);
+        action.setTextSize(11);
+        action.setMinHeight(dp(38));
+        action.setPadding(dp(12), dp(2), dp(12), dp(2));
         action.setContentDescription(title + ". " + detail);
         return action;
     }
@@ -1520,8 +1504,8 @@ public final class MainActivity extends Activity {
 
     private LinearLayout card() {
         LinearLayout card = column();
-        card.setPadding(dp(16), dp(16), dp(16), dp(16));
-        card.setBackground(outline(SURFACE, OUTLINE, 20));
+        card.setPadding(dp(13), dp(13), dp(13), dp(13));
+        card.setBackground(outline(SURFACE, OUTLINE, 16));
         card.setElevation(0);
         return card;
     }
@@ -1530,20 +1514,20 @@ public final class MainActivity extends Activity {
         Button button = new Button(this);
         button.setAllCaps(false);
         button.setText(value);
-        button.setTextSize(14);
+        button.setTextSize(12);
         button.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
         button.setTextColor(foreground);
         button.setGravity(Gravity.CENTER);
-        button.setMinHeight(dp(48));
-        button.setPadding(dp(12), dp(6), dp(12), dp(6));
-        button.setBackground(round(background, 14));
+        button.setMinHeight(dp(42));
+        button.setPadding(dp(10), dp(4), dp(10), dp(4));
+        button.setBackground(round(background, 12));
         return button;
     }
 
     private Button compactButton(String value, int background, int foreground) {
         Button button = button(value, background, foreground);
-        button.setTextSize(11);
-        button.setMinHeight(dp(42));
+        button.setTextSize(10);
+        button.setMinHeight(dp(36));
         button.setPadding(dp(6), dp(2), dp(6), dp(2));
         button.setBackground(round(background, 12));
         return button;
@@ -1566,7 +1550,7 @@ public final class MainActivity extends Activity {
     private TextView text(String value, int size, int color, int style) {
         TextView view = new TextView(this);
         view.setText(value);
-        view.setTextSize(size);
+        view.setTextSize(Math.max(10, Math.round(size * 0.82f)));
         view.setTextColor(color);
         view.setTypeface(Typeface.create("sans-serif", style));
         view.setIncludeFontPadding(false);
@@ -1597,7 +1581,7 @@ public final class MainActivity extends Activity {
 
     private LinearLayout destinationNavigation() {
         LinearLayout navigation = row(Gravity.CENTER_VERTICAL);
-        navigation.setPadding(dp(10), dp(8), dp(10), dp(12));
+        navigation.setPadding(dp(10), dp(5), dp(10), dp(8));
         navigation.setBackground(outline(SURFACE, OUTLINE, 0));
         navigation.addView(destinationButton("inicio", "Inicio"), navigationWeight());
         navigation.addView(destinationButton("proteccion", "Barreras"), navigationWeight());
@@ -1614,9 +1598,9 @@ public final class MainActivity extends Activity {
         tile.setContentDescription(title);
         tile.setClickable(true);
         tile.setFocusable(true);
-        tile.setMinimumHeight(dp(56));
-        tile.setPadding(dp(2), dp(4), dp(2), dp(4));
-        tile.setBackground(round(selected ? SURFACE_RAISED : SURFACE, 16));
+        tile.setMinimumHeight(dp(48));
+        tile.setPadding(dp(2), dp(3), dp(2), dp(3));
+        tile.setBackground(round(selected ? SURFACE_RAISED : SURFACE, 13));
         ImageView icon = new ImageView(this);
         icon.setImageResource(navigationIcon(destination));
         icon.setColorFilter(foreground);
