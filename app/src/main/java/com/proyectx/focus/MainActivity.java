@@ -364,51 +364,61 @@ public final class MainActivity extends Activity {
         privacyCard.addView(privacyVpn, marginTop(8));
         protectionDestination.addView(privacyCard, marginTop(12));
 
-        recoveryDestination.addView(text("Reinicio con calma", 21, TEXT, Typeface.BOLD), marginTop(20));
-        LinearLayout recoveryCard = card();
-        recoveryCard.addView(text("Vuelve a elegir tu siguiente paso", 19, TEXT, Typeface.BOLD));
-        recoveryCard.addView(text(
-                "Un reinicio cierra la sesión actual y registra una nota local. Tus reglas, permisos y protección permanecen como están.",
-                14,
-                MUTED,
-                Typeface.NORMAL));
-        TextView recoverySummary = text(recoveryStore.summary(), 13, MUTED, Typeface.NORMAL);
-        recoveryCard.addView(recoverySummary, marginTop(10));
-        Button pauseRecovery = button("NECESITO UNA PAUSA", DANGER, Color.WHITE);
-        pauseRecovery.setOnClickListener(view -> showRecoveryPrompt("Pausa consciente"));
-        recoveryCard.addView(pauseRecovery, marginTop(14));
-        Button planRecovery = button("CAMBIAR MI PLAN", SURFACE_RAISED, TEXT);
-        planRecovery.setOnClickListener(view -> showRecoveryPrompt("Cambio de plan"));
-        recoveryCard.addView(planRecovery, marginTop(8));
-        recoveryDestination.addView(recoveryCard, marginTop(12));
-
         HabitStreak streak = habitStreakStore.read();
-        LinearLayout rhythmCard = card();
-        rhythmCard.addView(text("Ritmo de enfoque", 19, TEXT, Typeface.BOLD));
-        rhythmCard.addView(text(
+        LinearLayout constancy = card();
+        constancy.setPadding(dp(13), dp(12), dp(13), dp(12));
+        constancy.setBackground(outline(Color.rgb(228, 238, 255), Color.rgb(184, 210, 255), 16));
+        LinearLayout constancyHeader = row(Gravity.CENTER_VERTICAL);
+        constancyHeader.addView(text("CONSTANCIA", 10, PRIMARY, Typeface.BOLD), weight());
+        constancyHeader.addView(tag("LOCAL", PRIMARY, SURFACE));
+        constancy.addView(constancyHeader);
+        constancy.addView(text("Racha de enfoque", 17, TEXT, Typeface.BOLD));
+        constancy.addView(text(
                 streak.currentDays() == 0
-                        ? "Inicia una sesión cuando te sirva: el primer día crea tu racha local."
-                        : streak.currentDays()
-                                + (streak.currentDays() == 1 ? " día seguido" : " días seguidos")
-                                + " con una sesión de enfoque iniciada.",
-                14,
+                        ? "Inicia una sesión cuando te sirva. El primer día construye una referencia privada, no un diagnóstico."
+                        : "Has iniciado una sesión en "
+                                + streak.currentDays()
+                                + (streak.currentDays() == 1 ? " día seguido." : " días seguidos."),
+                12,
                 MUTED,
                 Typeface.NORMAL));
-        rhythmCard.addView(
-                text(
-                        "Mejor racha local: " + streak.bestDays() + (streak.bestDays() == 1 ? " día." : " días."),
-                        13,
-                        PRIMARY,
-                        Typeface.BOLD),
-                marginTop(8));
-        rhythmCard.addView(
-                text(
-                        "Consejo: elige una sesión breve y protege sólo tu siguiente bloque de atención.",
-                        13,
-                        MUTED,
-                        Typeface.NORMAL),
-                marginTop(8));
-        recoveryDestination.addView(rhythmCard, marginTop(12));
+        LinearLayout constancyMetrics = row(Gravity.CENTER_VERTICAL);
+        constancyMetrics.addView(
+                metricCard("DÍAS ACTUALES", String.valueOf(streak.currentDays()), "racha local"),
+                weightWithMargin(1, 0, 0, dp(6), 0));
+        constancyMetrics.addView(metricCard("MEJOR RACHA", String.valueOf(streak.bestDays()), "días"), weight());
+        constancy.addView(constancyMetrics, marginTop(8));
+        recoveryDestination.addView(constancy, marginTop(10));
+
+        LinearLayout recoveryCard = card();
+        LinearLayout recoveryHeader = row(Gravity.CENTER_VERTICAL);
+        recoveryHeader.addView(text("Reinicio consciente", 17, TEXT, Typeface.BOLD), weight());
+        recoveryHeader.addView(tag("PRIVADO", PRIMARY, BACKGROUND));
+        recoveryCard.addView(recoveryHeader);
+        recoveryCard.addView(text(
+                "Si necesitas volver a empezar, se cierra solo la sesión actual. Tus reglas, permisos y filtro DNS permanecen intactos.",
+                12,
+                MUTED,
+                Typeface.NORMAL));
+        recoveryCard.addView(text(recoveryStore.summary(), 11, PRIMARY, Typeface.BOLD), marginTop(6));
+        Button pauseRecovery = button("TOMAR UNA PAUSA", TEXT, Color.WHITE);
+        pauseRecovery.setOnClickListener(view -> showRecoveryPrompt("Pausa consciente"));
+        recoveryCard.addView(pauseRecovery, marginTop(9));
+        Button planRecovery = compactButton("CAMBIAR MI PLAN", SURFACE_RAISED, PRIMARY);
+        planRecovery.setOnClickListener(view -> showRecoveryPrompt("Cambio de plan"));
+        recoveryCard.addView(planRecovery, marginTop(6));
+        recoveryDestination.addView(recoveryCard, marginTop(10));
+
+        LinearLayout milestones = card();
+        LinearLayout milestonesHeader = row(Gravity.CENTER_VERTICAL);
+        milestonesHeader.addView(text("Hitos de estabilidad", 16, TEXT, Typeface.BOLD), weight());
+        milestonesHeader.addView(tag("PROGRESO", PRIMARY, BACKGROUND));
+        milestones.addView(milestonesHeader);
+        milestones.addView(milestoneRow("01", "Primer día de enfoque", streak.currentDays() >= 1));
+        milestones.addView(milestoneRow("02", "Tres días de constancia", streak.currentDays() >= 3), marginTop(4));
+        milestones.addView(milestoneRow("03", "Una semana de práctica", streak.currentDays() >= 7), marginTop(4));
+        milestones.addView(milestoneRow("04", "Treinta días de hábito", streak.currentDays() >= 30), marginTop(4));
+        recoveryDestination.addView(milestones, marginTop(10));
 
         LinearLayout rulesOverview = card();
         rulesOverview.setPadding(dp(13), dp(12), dp(13), dp(12));
@@ -1483,6 +1493,18 @@ public final class MainActivity extends Activity {
         card.addView(text(value, 18, TEXT, Typeface.BOLD));
         card.addView(text(detail, 12, MUTED, Typeface.NORMAL));
         return card;
+    }
+
+    private LinearLayout milestoneRow(String number, String title, boolean complete) {
+        LinearLayout row = row(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(10), dp(5), dp(10), dp(5));
+        row.setBackground(round(complete ? ACCENT : SURFACE_RAISED, 12));
+        row.addView(tag(number, complete ? PRIMARY : MUTED, SURFACE));
+        TextView label = text(title, 12, TEXT, Typeface.BOLD);
+        label.setPadding(dp(8), 0, dp(8), 0);
+        row.addView(label, weight());
+        row.addView(text(complete ? "✓" : "Pendiente", 11, complete ? PRIMARY : MUTED, Typeface.BOLD));
+        return row;
     }
 
     private TextView compactMetric(String label) {
