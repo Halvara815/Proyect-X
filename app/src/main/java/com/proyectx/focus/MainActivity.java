@@ -74,6 +74,7 @@ public final class MainActivity extends Activity {
     private BudgetStore budgetStore;
     private FocusSessionStore sessionStore;
     private HabitStreakStore habitStreakStore;
+    private FaithModeStore faithModeStore;
     private RecoveryStore recoveryStore;
     private LinearLayout rulesContainer;
     private TextView ruleCountView;
@@ -107,6 +108,7 @@ public final class MainActivity extends Activity {
         budgetStore = new BudgetStore(this);
         sessionStore = new FocusSessionStore(this);
         habitStreakStore = new HabitStreakStore(this);
+        faithModeStore = new FaithModeStore(this);
         recoveryStore = new RecoveryStore(this);
         render();
     }
@@ -187,6 +189,23 @@ public final class MainActivity extends Activity {
         heroRoutes.addView(rulesRoute, weight());
         hero.addView(heroRoutes, marginTop(12));
         homeDestination.addView(hero, marginTop(16));
+
+        if (faithModeStore.isEnabled()) {
+            LinearLayout refugeCard = card();
+            refugeCard.addView(tag("MODO FE OPCIONAL", PRIMARY, SURFACE_RAISED));
+            refugeCard.addView(text("Refugio para este momento", 19, TEXT, Typeface.BOLD), marginTop(8));
+            refugeCard.addView(
+                    text(
+                            "Filipenses 4:6 · Por nada estéis afanosos; sino sean notorias vuestras peticiones delante de Dios en toda oración y ruego, con hacimiento de gracias.",
+                            14,
+                            MUTED,
+                            Typeface.NORMAL),
+                    marginTop(5));
+            Button openReader = button("ABRIR LECTURA", PRIMARY, BACKGROUND);
+            openReader.setOnClickListener(view -> openBibleReader());
+            refugeCard.addView(openReader, marginTop(12));
+            homeDestination.addView(refugeCard, marginTop(12));
+        }
 
         if (!isAccessibilityEnabled()) {
             LinearLayout accessNotice = card();
@@ -1168,6 +1187,13 @@ public final class MainActivity extends Activity {
         });
         content.addView(privacy, marginTop(6));
 
+        Button faithMode = menuAction("MODO FE / LECTURA BÍBLICA", "Activa o pausa el lector local RV1909");
+        faithMode.setOnClickListener(view -> {
+            popup.dismiss();
+            showFaithModeSettings();
+        });
+        content.addView(faithMode, marginTop(6));
+
         Button help = menuAction("AYUDA", "Permisos, reglas y cobertura explicados");
         help.setOnClickListener(view -> {
             popup.dismiss();
@@ -1189,6 +1215,60 @@ public final class MainActivity extends Activity {
         });
         content.addView(feedback, marginTop(6));
         popup.showAsDropDown(anchor, -dp(286), dp(8));
+    }
+
+    private void showFaithModeSettings() {
+        LinearLayout content = column();
+        content.setPadding(dp(8), dp(4), dp(8), dp(4));
+        LinearLayout top = row(Gravity.CENTER_VERTICAL);
+        LinearLayout words = column();
+        words.addView(text("Modo Fe / Lectura Bíblica (Opcional)", 18, TEXT, Typeface.BOLD));
+        words.addView(text(
+                "Habilita Refugio y los versículos RV1909 locales. No cambia las barreras ni envía lecturas.",
+                13,
+                MUTED,
+                Typeface.NORMAL));
+        top.addView(words, weight());
+        Switch enabled = new Switch(this);
+        enabled.setChecked(faithModeStore.isEnabled());
+        enabled.setContentDescription("Modo Fe / Lectura Bíblica (Opcional)");
+        top.addView(enabled);
+        content.addView(top);
+        content.addView(
+                text(
+                        "Fuente: Reina-Valera 1909, incluida en este dispositivo como texto de dominio público.",
+                        12,
+                        MUTED,
+                        Typeface.NORMAL),
+                marginTop(12));
+        new AlertDialog.Builder(this)
+                .setTitle("Ajustes locales")
+                .setView(content)
+                .setNegativeButton("CANCELAR", null)
+                .setPositiveButton("GUARDAR", (dialog, which) -> {
+                    if (!faithModeStore.setEnabled(enabled.isChecked())) {
+                        Toast.makeText(this, "No se pudo guardar el ajuste local.", Toast.LENGTH_LONG)
+                                .show();
+                        return;
+                    }
+                    render();
+                    Toast.makeText(
+                                    this,
+                                    enabled.isChecked()
+                                            ? "Lectura bíblica opcional activada."
+                                            : "Lectura bíblica opcional pausada.",
+                                    Toast.LENGTH_SHORT)
+                            .show();
+                })
+                .show();
+    }
+
+    private void openBibleReader() {
+        if (!faithModeStore.isEnabled()) {
+            showFaithModeSettings();
+            return;
+        }
+        startActivity(BibleReaderActivity.intent(this));
     }
 
     private Button menuAction(String title, String detail) {

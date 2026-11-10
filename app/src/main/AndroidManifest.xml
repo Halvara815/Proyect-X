@@ -65,5 +65,8 @@
             tools:targetApi="tiramisu"
             android:exported="false"
             android:launchMode="singleTop" />
+        <activity
+            android:name=".BibleReaderActivity"
+            android:exported="false" />
     </application>
 </manifest>

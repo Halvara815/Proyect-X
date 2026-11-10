@@ -74,6 +74,25 @@ public final class InterventionActivity extends Activity {
                         Typeface.NORMAL),
                 marginTop(18));
 
+        if (new FaithModeStore(this).isEnabled()) {
+            LinearLayout refuge = new LinearLayout(this);
+            refuge.setOrientation(LinearLayout.VERTICAL);
+            refuge.setPadding(dp(14), dp(14), dp(14), dp(14));
+            refuge.setBackground(round(Color.rgb(35, 49, 76), 16));
+            refuge.addView(text("REFUGIO · LECTURA OPCIONAL", 10, PRIMARY, Typeface.BOLD));
+            refuge.addView(
+                    text(
+                            "Filipenses 4:6 · Por nada estéis afanosos; sino sean notorias vuestras peticiones delante de Dios en toda oración y ruego, con hacimiento de gracias.",
+                            15,
+                            TEXT,
+                            Typeface.NORMAL),
+                    marginTop(6));
+            Button openReader = button("ABRIR LECTURA", PRIMARY, BACKGROUND);
+            openReader.setOnClickListener(view -> startActivity(BibleReaderActivity.intent(this)));
+            refuge.addView(openReader, marginTop(12));
+            card.addView(refuge, marginTop(16));
+        }
+
         Button home = button("IR AL INICIO", PRIMARY, BACKGROUND);
         home.setOnClickListener(view -> openHome());
         card.addView(home, marginTop(20));

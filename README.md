@@ -81,6 +81,8 @@ java -cp build\smoke com.proyectx.focus.FocusSessionSmokeTest
 - [Investigación REA del APK de referencia](docs/INVESTIGACION_REA_BLOCKERX_5_0_61.md)
 - [Mapa RAE de capacidades y layout propio](docs/RAE_LAYOUT_EVIDENCE.md)
 - [Matriz RAE de capacidades y exclusiones](docs/RAE_CAPABILITY_MATRIX.md)
+- [Procedencia y esquema de los datos RV1909](docs/RV1909_DATA.md)
+- [Evidencia RAE y adaptación del módulo Refugio](docs/RAE_BIBLE_LAYOUT_EVIDENCE.md)
 
 ## Licencia y nombre
 
