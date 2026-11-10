@@ -56,17 +56,17 @@ public final class MainActivity extends Activity {
     private static final int DNS_VPN_CONSENT_REQUEST = 4_201;
     private static final int DNS_NOTIFICATION_REQUEST = 4_202;
     private static final int RULE_EXPORT_REQUEST = 4_203;
-    // Original Proyect X visual tokens. They intentionally do not derive from reference products.
-    private static final int BACKGROUND = Color.rgb(246, 242, 234);
+    // Proyect X shell tokens: layout can evolve without altering local product data or behavior.
+    private static final int BACKGROUND = Color.rgb(246, 248, 252);
     private static final int SURFACE = Color.WHITE;
-    private static final int SURFACE_RAISED = Color.rgb(232, 239, 233);
-    private static final int PRIMARY = Color.rgb(22, 122, 104);
-    private static final int ACCENT = Color.rgb(199, 243, 107);
-    private static final int TEXT = Color.rgb(22, 51, 45);
-    private static final int MUTED = Color.rgb(102, 117, 111);
-    private static final int DANGER = Color.rgb(204, 91, 56);
-    private static final int HERO = Color.rgb(228, 244, 225);
-    private static final int OUTLINE = Color.rgb(211, 221, 213);
+    private static final int SURFACE_RAISED = Color.rgb(238, 244, 255);
+    private static final int PRIMARY = Color.rgb(55, 120, 246);
+    private static final int ACCENT = Color.rgb(207, 225, 255);
+    private static final int TEXT = Color.rgb(10, 19, 41);
+    private static final int MUTED = Color.rgb(100, 116, 139);
+    private static final int DANGER = Color.rgb(220, 75, 63);
+    private static final int HERO = Color.rgb(8, 16, 38);
+    private static final int OUTLINE = Color.rgb(226, 232, 240);
 
     private final Handler refreshHandler = new Handler(Looper.getMainLooper());
     private final Runnable refreshRunnable = this::refreshSession;
@@ -132,32 +132,38 @@ public final class MainActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(20), dp(24), dp(20), dp(32));
+        root.setPadding(0, 0, 0, dp(24));
         scroll.addView(
                 root,
                 new ScrollView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         LinearLayout header = row(Gravity.CENTER_VERTICAL);
+        header.setPadding(dp(18), dp(18), dp(18), dp(16));
+        header.setBackgroundColor(HERO);
         TextView mark = text("X", 18, Color.WHITE, Typeface.BOLD);
         mark.setGravity(Gravity.CENTER);
-        mark.setBackground(round(PRIMARY, 22));
+        mark.setBackground(round(PRIMARY, 16));
         header.addView(mark, size(dp(44), dp(44)));
         LinearLayout headerWords = column();
         headerWords.setPadding(dp(12), 0, 0, 0);
-        headerWords.addView(text("Proyect X", 26, TEXT, Typeface.BOLD));
+        headerWords.addView(text("Proyect X", 22, Color.WHITE, Typeface.BOLD));
         headerWords.addView(text("PRIVACIDAD LOCAL · SIN CUENTA", 11, PRIMARY, Typeface.BOLD));
         header.addView(headerWords, weight());
         ImageView menu = new ImageView(this);
         menu.setImageResource(R.drawable.ic_menu_centro);
-        menu.setColorFilter(TEXT);
+        menu.setColorFilter(Color.WHITE);
         menu.setContentDescription("Abrir centro local");
         menu.setClickable(true);
         menu.setFocusable(true);
         menu.setPadding(dp(10), dp(10), dp(10), dp(10));
-        menu.setBackground(round(SURFACE_RAISED, 18));
+        menu.setBackground(round(Color.rgb(24, 39, 74), 16));
         menu.setOnClickListener(this::showControlMenu);
         header.addView(menu, size(dp(44), dp(44)));
         root.addView(header);
+
+        LinearLayout content = column();
+        content.setPadding(dp(16), dp(14), dp(16), 0);
+        root.addView(content);
 
         LinearLayout destinations = column();
         LinearLayout homeDestination = column();
@@ -168,10 +174,11 @@ public final class MainActivity extends Activity {
         destinations.addView(protectionDestination);
         destinations.addView(rulesDestination);
         destinations.addView(recoveryDestination);
-        root.addView(destinations);
+        content.addView(destinations);
 
         LinearLayout hero = card();
-        hero.setBackground(round(HERO, 24));
+        hero.setPadding(dp(18), dp(18), dp(18), dp(16));
+        hero.setBackground(round(HERO, 22));
         hero.setElevation(0);
         hero.addView(tag("MAPA DEL DÍA", PRIMARY, BACKGROUND));
         hero.addView(text("Tu día, con menos interrupciones.", 25, TEXT, Typeface.BOLD));
@@ -188,6 +195,8 @@ public final class MainActivity extends Activity {
         rulesRoute.setOnClickListener(view -> switchDestination("reglas"));
         heroRoutes.addView(rulesRoute, weight());
         hero.addView(heroRoutes, marginTop(12));
+        ((TextView) hero.getChildAt(1)).setTextColor(Color.WHITE);
+        ((TextView) hero.getChildAt(2)).setTextColor(ACCENT);
         homeDestination.addView(hero, marginTop(16));
 
         if (faithModeStore.isEnabled()) {
@@ -1156,12 +1165,20 @@ public final class MainActivity extends Activity {
     /** Opens a local-only action menu. No item sends data without a user-selected share target. */
     private void showControlMenu(View anchor) {
         LinearLayout content = column();
-        content.setPadding(dp(16), dp(16), dp(16), dp(16));
+        content.setPadding(dp(12), dp(12), dp(12), dp(18));
         content.setBackground(round(SURFACE, 20));
+        LinearLayout drawerHeader = column();
+        drawerHeader.setPadding(dp(16), dp(18), dp(16), dp(16));
+        drawerHeader.setBackground(round(HERO, 16));
+        drawerHeader.addView(text("PROYECT X", 18, Color.WHITE, Typeface.BOLD));
+        drawerHeader.addView(text("CENTRO LOCAL · CONTROLES Y AYUDA", 10, ACCENT, Typeface.BOLD));
+        drawerHeader.addView(
+                text("Tus datos y decisiones permanecen en este dispositivo.", 12, ACCENT, Typeface.NORMAL));
+        content.addView(drawerHeader);
         content.addView(text("Centro local", 20, TEXT, Typeface.BOLD));
         content.addView(text("Herramientas del dispositivo", 12, MUTED, Typeface.NORMAL));
 
-        PopupWindow popup = new PopupWindow(content, dp(330), ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        PopupWindow popup = new PopupWindow(content, dp(320), ViewGroup.LayoutParams.MATCH_PARENT, true);
         popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         popup.setOutsideTouchable(true);
         popup.setElevation(dp(10));
@@ -1214,7 +1231,7 @@ public final class MainActivity extends Activity {
             showFeedbackComposer();
         });
         content.addView(feedback, marginTop(6));
-        popup.showAsDropDown(anchor, -dp(286), dp(8));
+        popup.showAtLocation(getWindow().getDecorView(), Gravity.START | Gravity.TOP, 0, 0);
     }
 
     private void showFaithModeSettings() {
@@ -1474,9 +1491,9 @@ public final class MainActivity extends Activity {
 
     private LinearLayout card() {
         LinearLayout card = column();
-        card.setPadding(dp(18), dp(18), dp(18), dp(18));
-        card.setBackground(outline(SURFACE, OUTLINE, 22));
-        card.setElevation(dp(1));
+        card.setPadding(dp(16), dp(16), dp(16), dp(16));
+        card.setBackground(outline(SURFACE, OUTLINE, 20));
+        card.setElevation(0);
         return card;
     }
 
@@ -1551,7 +1568,7 @@ public final class MainActivity extends Activity {
 
     private LinearLayout destinationNavigation() {
         LinearLayout navigation = row(Gravity.CENTER_VERTICAL);
-        navigation.setPadding(dp(12), dp(8), dp(12), dp(12));
+        navigation.setPadding(dp(10), dp(8), dp(10), dp(12));
         navigation.setBackground(outline(SURFACE, OUTLINE, 0));
         navigation.addView(destinationButton("inicio", "Inicio"), navigationWeight());
         navigation.addView(destinationButton("proteccion", "Barreras"), navigationWeight());
@@ -1562,7 +1579,7 @@ public final class MainActivity extends Activity {
 
     private LinearLayout destinationButton(String destination, String title) {
         boolean selected = destination.equals(activeDestination);
-        int foreground = selected ? TEXT : MUTED;
+        int foreground = selected ? PRIMARY : MUTED;
         LinearLayout tile = column();
         tile.setGravity(Gravity.CENTER);
         tile.setContentDescription(title);
@@ -1570,7 +1587,7 @@ public final class MainActivity extends Activity {
         tile.setFocusable(true);
         tile.setMinimumHeight(dp(56));
         tile.setPadding(dp(2), dp(4), dp(2), dp(4));
-        tile.setBackground(round(selected ? ACCENT : SURFACE, 16));
+        tile.setBackground(round(selected ? SURFACE_RAISED : SURFACE, 16));
         ImageView icon = new ImageView(this);
         icon.setImageResource(navigationIcon(destination));
         icon.setColorFilter(foreground);
