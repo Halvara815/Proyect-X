@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="px_background">#F6F2EA</color>
-    <color name="px_primary">#167A68</color>
+    <color name="px_background">#FFFFFF</color>
+    <color name="px_primary">#3778F6</color>
 </resources>

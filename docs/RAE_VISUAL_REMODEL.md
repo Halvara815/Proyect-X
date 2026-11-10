@@ -21,15 +21,38 @@ demuestra ejecución de la aplicación de referencia.
 | `src/components/DiagnosticoScreen.tsx` | Flujo inicial omitible, progreso y resultado de calibración | Preguntas, opciones, puntuación y datos de ejemplo |
 | `src/index.css` | Contraste entre cabecera oscura, fondo frío y superficies claras | CSS, tipografías y tokens literales |
 
-## Implementación propia
+## Implementación propia y fidelidad visual
 
-`MainActivity` ahora usa una cabecera oscura, fondo frío, tarjetas con borde sutil, CTA azules,
-navegación inferior persistente y un panel lateral de centro local. Todos los títulos, detalles,
-contadores, reglas, permisos, acciones y datos continúan provenientes de Proyect X y de sus
-almacenes locales existentes. No se importaron imágenes, corpus, datos estáticos ni código del ZIP.
+`MainActivity` implementa la jerarquía visual de las cinco vistas de referencia manteniendo el 100 %
+de la lógica y almacenes locales de Proyect X (`RuleStore`, `BudgetStore`, `FocusSessionStore`,
+`HabitStreakStore`, `FaithModeStore`, `CalibrationStore`, `RecoveryStore`, `DnsVpnService`):
 
-La validación posterior se realizó con `:app:lintDebug`, `:app:assembleDebug` y capturas del AVD
-para Inicio, Barreras y el centro local.
+1. **Cabecera superior blanca persistente:** Botón de menú con icono vectorial limpio en azul sobre
+   superficie `#EEF4FF`, marca `ProyectX` (`ENFOQUE LOCAL · SIN CUENTA`) y píldora de estado
+   `BLINDADO` (`#081026`) / `FLEXIBLE` (`#DCE8FF`).
+2. **Inicio (superior e inferior):** Tarjeta de estado de Accesibilidad con botón
+   `ACCESIBILIDAD ACTIVA · REVISAR` / `ACCESIBILIDAD · REVISAR`, cuadrícula de dos columnas
+   (`REGLAS ACTIVAS` y `COBERTURA` en azul `#2563EB`), `Tu mapa de reglas` con tres mosaicos
+   (`DOMINIOS`, `APPS`, `PALABRAS`) y tarjeta azul suave (`#DCE8FF`) de `Sesión de enfoque` /
+   `En enfoque ahora` con píldoras de intención (`Estudio`, `Trabajo`, `Código`, `Lectura`),
+   selector de duración (`− 25m +`, `25 min`, `50 min`, `90 min`) y botón principal en `#081026`.
+3. **Barreras:** Tarjeta `PERFIL DE PROTECCIÓN ACTIVO` con interruptor maestro y selector
+   segmentado (`Modo Flexible` | `Modo Blindado` con icono de candado vectorial), tarjeta
+   `Capas de intercepción local` (`SIN NUBE`) con iconos vectoriales limpios (`Filtro DNS` conectado
+   al ciclo de vida real de `DnsVpnService`, `Cobertura en todos los navegadores` y `Cortafuegos de
+   redes y videos cortos` con selector `Solo Reels y Shorts` | `Apps sociales completas`), además de
+   los controles locales de presupuesto diario y diagnóstico DNS (`REINTENTAR FILTRO DNS`).
+4. **Reinicio:** Selector superior de tres segmentos (`Constancia` | `Bitácora` | `Guías y Foro`),
+   tarjeta `TIEMPO CONTINUO SIN INTERRUPCIONES` con tres contadores digitales blancos (`DÍAS`,
+   `HORAS` en azul `#2563EB`, `MINUTOS`), mejor marca local y botones `Reiniciar contador` y
+   `Abrir Bitácora`, tarjeta `MOTIVACIÓN NORMAL PARA TU ESTADO` / `VERSÍCULO PARA TU ESTADO`,
+   `Balance de sesiones y barreras` y `Hitos de estabilidad`.
+5. **Panel lateral (`Centro local`):** Cabecera oscura `#081026` de borde a borde con insignia `PX`,
+   tarjeta interna `MENSAJES DE FIRMEZA` (`Configurar modo` y `Accesibilidad`), cinco accesos con
+   iconografía vectorial limpia y divisores de `1dp`, y pie `ProyectX · En desarrollo`.
+
+La validación posterior se realizó con `spotlessCheck`, `:app:lintDebug`, `:app:assembleDebug`,
+`:app:assembleRelease`, las 23 pruebas smoke JVM y capturas en vivo sobre `emulator-5554`.
 
 ## Calibración local propia
 
